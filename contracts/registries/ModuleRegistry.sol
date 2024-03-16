@@ -43,7 +43,7 @@ contract ModuleRegistry is IModuleRegistry, GovernableUpgradeable, UUPSUpgradeab
     function initialize(address governance_) public initializer {
         __GovernableUpgradeable_init(governance_);
         __UUPSUpgradeable_init();
-
+        
         // Register the default module types
         _getModuleRegistryStorage().allModuleTypes[MODULE_TYPE_DEFAULT] = type(IModule).interfaceId;
     }
