@@ -238,7 +238,14 @@ contract DeployHelper {
         if (d.moduleRegistry) {
             address impl = address(new ModuleRegistry());
             moduleRegistry = ModuleRegistry(
-                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(AccessController.initialize, (getGovernance())))
+                TestProxyHelper.deployUUPSProxy(
+                    impl,
+                    abi.encodeCall(
+                        ModuleRegistry.initialize, (
+                            getGovernance()
+                        )
+                    )
+                )
             );
             console2.log("DeployHelper: Using REAL ModuleRegistry");
             postDeployConditions.moduleRegistry_registerModules = true;
