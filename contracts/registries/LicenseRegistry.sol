@@ -312,7 +312,7 @@ contract LicenseRegistry is ILicenseRegistry, ERC1155Upgradeable, GovernableUpgr
     //                         Upgrades related                               //
     ////////////////////////////////////////////////////////////////////////////
 
-    function _getLicenseRegistryStorage() private pure returns (LicenseRegistryStorage storage $) {
+    function _getLicenseRegistryStorage() internal pure returns (LicenseRegistryStorage storage $) {
         assembly {
             $.slot := LicenseRegistryStorageLocation
         }
