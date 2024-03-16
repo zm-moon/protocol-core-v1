@@ -5,6 +5,7 @@ pragma solidity 0.8.23;
 // external
 import { console2 } from "forge-std/console2.sol"; // console to indicate mock deployment calls.
 import { ERC6551Registry } from "erc6551/ERC6551Registry.sol";
+import { Upgrades } from "openzeppelin-foundry-upgrades/Upgrades.sol";
 
 // contracts
 import { AccessController } from "../../../contracts/AccessController.sol";

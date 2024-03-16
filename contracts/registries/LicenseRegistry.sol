@@ -310,13 +310,18 @@ contract LicenseRegistry is ILicenseRegistry, ERC1155Upgradeable, GovernableUpgr
     //                         Upgrades related                               //
     ////////////////////////////////////////////////////////////////////////////
 
-    function _getLicenseRegistryStorage() internal pure returns (LicenseRegistryStorage storage $) {
+    function _getLicenseRegistryStorage() private pure returns (LicenseRegistryStorage storage $) {
         assembly {
             $.slot := LicenseRegistryStorageLocation
         }
     }
 
     /// @dev Hook to authorize the upgrade according to UUPSUgradeable
+    /// Must be called by ProtocolRoles.UPGRADER
     /// @param newImplementation The address of the new implementation
-    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyProtocolAdmin
+        override
+    {}
 }
