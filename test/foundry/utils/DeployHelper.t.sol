@@ -235,7 +235,17 @@ contract DeployHelper {
 
     function _deployRegistryConditionally(DeployRegistryCondition memory d) public {
         if (d.moduleRegistry) {
-            moduleRegistry = new ModuleRegistry(getGovernance());
+            address impl = address(new ModuleRegistry());
+            moduleRegistry = ModuleRegistry(
+                TestProxyHelper.deployUUPSProxy(
+                    impl,
+                    abi.encodeCall(
+                        ModuleRegistry.initialize, (
+                            getGovernance()
+                        )
+                    )
+                )
+            );
             console2.log("DeployHelper: Using REAL ModuleRegistry");
             postDeployConditions.moduleRegistry_registerModules = true;
         }

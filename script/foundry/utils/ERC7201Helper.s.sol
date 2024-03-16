@@ -13,7 +13,7 @@ import { console2 } from "forge-std/console2.sol";
 contract ERC7201HelperScript is Script {
 
     string constant NAMESPACE = "story-protocol";
-    string constant CONTRACT_NAME = "MockLicenseRegistryV2";
+    string constant CONTRACT_NAME = "ModuleRegistry";
 
     function run() external {
         bytes memory erc7201Key = abi.encodePacked(NAMESPACE,".", CONTRACT_NAME);
@@ -32,6 +32,7 @@ contract ERC7201HelperScript is Script {
         console2.log("");
 
         // Log getter function
+        console2.log(string(abi.encodePacked("/// @dev Returns the storage struct of ", CONTRACT_NAME, ".")));
         console2.log(string(abi.encodePacked("function _get", CONTRACT_NAME, "Storage() private pure returns (", CONTRACT_NAME, "Storage storage $) {")));
         console2.log(string(abi.encodePacked("    assembly {")));
         console2.log(string(abi.encodePacked("        $.slot := ", CONTRACT_NAME, "StorageLocation")));

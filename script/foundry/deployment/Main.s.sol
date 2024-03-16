@@ -168,7 +168,16 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
 
         contractKey = "ModuleRegistry";
         _predeploy(contractKey);
-        moduleRegistry = new ModuleRegistry(address(governance));
+        moduleRegistry = ModuleRegistry(
+            Upgrades.deployUUPSProxy(
+                "ModuleRegistry.sol",
+                abi.encodeCall(
+                    ModuleRegistry.initialize, (
+                        address(governance)
+                    )
+                )
+            )
+        );
         _postdeploy(contractKey, address(moduleRegistry));
 
         contractKey = "IPAccountRegistry";
