@@ -5,6 +5,8 @@ import { Base64 } from "@openzeppelin/contracts/utils/Base64.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 import { ERC1155Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
+import { Initializable } from  "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { IPolicyFrameworkManager } from "../interfaces/modules/licensing/IPolicyFrameworkManager.sol";
@@ -310,7 +312,7 @@ contract LicenseRegistry is ILicenseRegistry, ERC1155Upgradeable, GovernableUpgr
     //                         Upgrades related                               //
     ////////////////////////////////////////////////////////////////////////////
 
-    function _getLicenseRegistryStorage() internal pure returns (LicenseRegistryStorage storage $) {
+    function _getLicenseRegistryStorage() private pure returns (LicenseRegistryStorage storage $) {
         assembly {
             $.slot := LicenseRegistryStorageLocation
         }
@@ -319,5 +321,9 @@ contract LicenseRegistry is ILicenseRegistry, ERC1155Upgradeable, GovernableUpgr
     /// @dev Hook to authorize the upgrade according to UUPSUgradeable
     /// Must be called by ProtocolRoles.UPGRADER
     /// @param newImplementation The address of the new implementation
-    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyProtocolAdmin
+        override
+    {}
 }
