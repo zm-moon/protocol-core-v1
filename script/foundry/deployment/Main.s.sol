@@ -158,7 +158,16 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
 
         contractKey = "AccessController";
         _predeploy(contractKey);
-        accessController = new AccessController(address(governance));
+        accessController = AccessController(
+            Upgrades.deployUUPSProxy(
+                "AccessController.sol",
+                abi.encodeCall(
+                    AccessController.initialize, (
+                        address(governance)
+                    )
+                )
+            )
+        );
         _postdeploy(contractKey, address(accessController));
 
         contractKey = "IPAccountImpl";
@@ -328,7 +337,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
     }
 
     function _configureAccessController() private {
-        accessController.initialize(address(ipAccountRegistry), address(moduleRegistry));
+        accessController.setAddresses(address(ipAccountRegistry), address(moduleRegistry));
 
         accessController.setGlobalPermission(
             address(ipAssetRegistry),

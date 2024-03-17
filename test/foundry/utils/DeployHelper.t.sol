@@ -44,7 +44,6 @@ import { MockERC20 } from "../mocks/token/MockERC20.sol";
 import { MockERC721 } from "../mocks/token/MockERC721.sol";
 import { TestProxyHelper } from "./TestProxyHelper.sol";
 
-
 contract DeployHelper {
     // TODO: three options, auto/mock/real in deploy condition, so that we don't need to manually
     //       call getXXX to get mock contract (if there's no real contract deployed).
@@ -220,7 +219,18 @@ contract DeployHelper {
             console2.log("DeployHelper: Using REAL Governance");
         }
         if (d.accessController) {
-            accessController = new AccessController(getGovernance());
+            address impl = address(new AccessController());
+            accessController = AccessController(
+                TestProxyHelper.deployUUPSProxy(
+                    impl,
+                    abi.encodeCall(
+                        AccessController.initialize, (
+                            getGovernance()
+                        )
+                    )
+                )
+            );
+
             console2.log("DeployHelper: Using REAL AccessController");
             postDeployConditions.accessController_init = true;
             // Access Controller uses IPAccountRegistry in its initialize function.
@@ -240,7 +250,7 @@ contract DeployHelper {
                 TestProxyHelper.deployUUPSProxy(
                     impl,
                     abi.encodeCall(
-                        ModuleRegistry.initialize, (
+                        AccessController.initialize, (
                             getGovernance()
                         )
                     )

@@ -105,7 +105,7 @@ contract BaseTest is Test, DeployHelper, LicensingHelper {
         vm.startPrank(u.admin);
 
         // NOTE: accessController is IAccessController, which doesn't expose `initialize` function.
-        AccessController(address(accessController)).initialize(address(ipAccountRegistry), getModuleRegistry());
+        AccessController(address(accessController)).setAddresses(address(ipAccountRegistry), getModuleRegistry());
 
         accessController.setGlobalPermission(
             address(ipAssetRegistry),

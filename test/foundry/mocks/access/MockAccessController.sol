@@ -9,7 +9,7 @@ import { AccessPermission } from "contracts/lib/AccessPermission.sol";
 contract MockAccessController is IAccessController {
     bool public isAllowed = true;
 
-    function initialize(address ipAccountRegistry, address moduleRegistry) external {}
+    function setAddresses(address ipAccountRegistry, address moduleRegistry) external {}
 
     function setAllowed(bool _isAllowed) external {
         isAllowed = _isAllowed;
