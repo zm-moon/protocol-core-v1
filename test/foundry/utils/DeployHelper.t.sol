@@ -219,7 +219,14 @@ contract DeployHelper {
         if (d.accessController) {
             address impl = address(new AccessController());
             accessController = AccessController(
-                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(AccessController.initialize, (getGovernance())))
+                TestProxyHelper.deployUUPSProxy(
+                    impl,
+                    abi.encodeCall(
+                        AccessController.initialize, (
+                            getGovernance()
+                        )
+                    )
+                )
             );
 
             console2.log("DeployHelper: Using REAL AccessController");
@@ -241,7 +248,7 @@ contract DeployHelper {
                 TestProxyHelper.deployUUPSProxy(
                     impl,
                     abi.encodeCall(
-                        ModuleRegistry.initialize, (
+                        AccessController.initialize, (
                             getGovernance()
                         )
                     )

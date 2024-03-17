@@ -247,5 +247,9 @@ contract AccessController is IAccessController, GovernableUpgradeable, UUPSUpgra
 
     /// @dev Hook to authorize the upgrade according to UUPSUgradeable
     /// @param newImplementation The address of the new implementation
-    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyProtocolAdmin
+        override
+    {}
 }
