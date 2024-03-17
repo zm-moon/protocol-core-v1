@@ -23,6 +23,17 @@ abstract contract AccessControlled {
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IIPAccountRegistry public immutable IP_ACCOUNT_REGISTRY;
 
+    /// @dev Initializes the contract by setting the ACCESS_CONTROLLER and IP_ACCOUNT_REGISTRY addresses.
+    /// @param accessController The address of the AccessController contract.
+    /// @param ipAccountRegistry The address of the IPAccountRegistry contract.
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(address accessController, address ipAccountRegistry) {
+        if (accessController == address(0)) revert Errors.AccessControlled__ZeroAddress();
+        if (ipAccountRegistry == address(0)) revert Errors.AccessControlled__ZeroAddress();
+        ACCESS_CONTROLLER = IAccessController(accessController);
+        IP_ACCOUNT_REGISTRY = IIPAccountRegistry(ipAccountRegistry);
+    }
+
     /// @notice Verifies that the caller has the necessary permission for the given IPAccount.
     /// @dev Modifier that calls _verifyPermission to check if the provided IP account has the required permission.
     /// modules can use this modifier to check if the caller has the necessary permission.

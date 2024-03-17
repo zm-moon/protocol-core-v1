@@ -34,14 +34,7 @@ import { GovernableUpgradeable } from "../../governance/GovernableUpgradeable.so
 /// - Linking IP to its parent
 /// - Verifying linking parameters
 /// - Verifying policy parameters
-contract LicensingModule is
-    AccessControlled,
-    ILicensingModule,
-    BaseModule,
-    ReentrancyGuardUpgradeable,
-    GovernableUpgradeable,
-    UUPSUpgradeable
-{
+contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, ReentrancyGuardUpgradeable, GovernableUpgradeable, UUPSUpgradeable {
     using ERC165Checker for address;
     using IPAccountChecker for IIPAccountRegistry;
     using EnumerableSet for EnumerableSet.UintSet;
@@ -626,5 +619,10 @@ contract LicensingModule is
 
     /// @dev Hook to authorize the upgrade according to UUPSUgradeable
     /// @param newImplementation The address of the new implementation
-    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyProtocolAdmin
+        override
+    {}
+
 }
