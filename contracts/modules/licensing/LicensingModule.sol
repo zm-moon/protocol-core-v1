@@ -5,7 +5,8 @@ pragma solidity 0.8.23;
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { IIPAccount } from "../../interfaces/IIPAccount.sol";
 import { IPolicyFrameworkManager } from "../../interfaces/modules/licensing/IPolicyFrameworkManager.sol";
@@ -22,6 +23,7 @@ import { RoyaltyModule } from "../../modules/royalty/RoyaltyModule.sol";
 import { AccessControlled } from "../../access/AccessControlled.sol";
 import { LICENSING_MODULE_KEY } from "../../lib/modules/Module.sol";
 import { BaseModule } from "../BaseModule.sol";
+import { GovernableUpgradeable } from "../../governance/GovernableUpgradeable.sol";
 
 // TODO: consider disabling operators/approvals on creation
 /// @title Licensing Module
@@ -32,7 +34,7 @@ import { BaseModule } from "../BaseModule.sol";
 /// - Linking IP to its parent
 /// - Verifying linking parameters
 /// - Verifying policy parameters
-contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, ReentrancyGuard {
+contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, ReentrancyGuardUpgradeable, GovernableUpgradeable, UUPSUpgradeable {
     using ERC165Checker for address;
     using IPAccountChecker for IIPAccountRegistry;
     using EnumerableSet for EnumerableSet.UintSet;
@@ -40,42 +42,45 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
     using Licensing for *;
     using Strings for *;
 
+    /// @notice Storage struct for the LicensingModule
+    /// @param registeredFrameworkManagers Mapping of registered policy framework managers
+    /// @param hashedPolicies Mapping of policy data to policy id
+    /// @param policies Mapping of policy id to policy data (hashed)
+    /// @param totalPolicies Total amount of distinct licensing policies in LicenseRegistry
+    /// @param policySetups Internal mapping to track if a policy was set by linking or minting, and the index of the policy in the
+    /// ipId policy set. Policies can't be removed, but they can be deactivated by setting active to false.
+    /// @param policiesPerIpId the set of policy ids attached to the given ipId
+    /// @param ipIdParents Mapping of parent policy ids for the given ipId
+    /// @param ipRights Mapping of policy aggregator data for the given ipId in a framework
+    /// @custom:storage-location erc7201:story-protocol.LicensingModule
+    struct LicensingModuleStorage {
+        mapping(address framework => bool registered) registeredFrameworkManagers;
+        mapping(bytes32 policyHash => uint256 policyId) hashedPolicies;
+        mapping(uint256 policyId => Licensing.Policy policyData) policies;
+        uint256 totalPolicies;
+        mapping(address ipId => mapping(uint256 policyId => PolicySetup setup)) policySetups;
+        mapping(bytes32 hashIpIdAnInherited => EnumerableSet.UintSet policyIds) policiesPerIpId;
+        mapping(address ipId => EnumerableSet.AddressSet parentIpIds) ipIdParents;
+        mapping(address framework => mapping(address ipId => bytes policyAggregatorData)) ipRights;
+    }
+
     /// @inheritdoc IModule
     string public constant override name = LICENSING_MODULE_KEY;
 
     /// @notice Returns the canonical protocol-wide RoyaltyModule
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     RoyaltyModule public immutable ROYALTY_MODULE;
 
     /// @notice Returns the canonical protocol-wide LicenseRegistry
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     ILicenseRegistry public immutable LICENSE_REGISTRY;
 
     /// @notice Returns the dispute module
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IDisputeModule public immutable DISPUTE_MODULE;
 
-    /// @dev Returns if a framework is registered or not
-    mapping(address framework => bool registered) private _registeredFrameworkManagers;
-
-    /// @dev Returns the policy id for the given policy data (hashed)
-    mapping(bytes32 policyHash => uint256 policyId) private _hashedPolicies;
-
-    /// @dev Returns the policy data for the given policy id
-    mapping(uint256 policyId => Licensing.Policy policyData) private _policies;
-
-    /// @dev Total amount of distinct licensing policies in LicenseRegistry
-    uint256 private _totalPolicies;
-
-    /// @dev Internal mapping to track if a policy was set by linking or minting, and the index of the policy in the
-    /// ipId policy set. Policies can't be removed, but they can be deactivated by setting active to false.
-    mapping(address ipId => mapping(uint256 policyId => PolicySetup setup)) private _policySetups;
-
-    /// @dev Returns the set of policy ids attached to the given ipId
-    mapping(bytes32 hashIpIdAnInherited => EnumerableSet.UintSet policyIds) private _policiesPerIpId;
-
-    /// @dev Returns the set of parent policy ids for the given ipId
-    mapping(address ipId => EnumerableSet.AddressSet parentIpIds) private _ipIdParents;
-
-    /// @dev Returns the policy aggregator data for the given ipId in a framework
-    mapping(address framework => mapping(address ipId => bytes policyAggregatorData)) private _ipRights;
+    // keccak256(abi.encode(uint256(keccak256("story-protocol.LicensingModule")) - 1)) & ~bytes32(uint256(0xff));
+    bytes32 private constant LicensingModuleStorageLocation = 0x0f7178cb62e4803c52d40f70c08a6f88d6ee1af1838d58e0c83a222a6c3d3100;
 
     /// @notice Modifier to allow only LicenseRegistry as the caller
     modifier onlyLicenseRegistry() {
@@ -83,6 +88,13 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         _;
     }
 
+    /// Constructor
+    /// @param accessController The address of the AccessController contract
+    /// @param ipAccountRegistry The address of the IPAccountRegistry contract
+    /// @param royaltyModule The address of the RoyaltyModule contract
+    /// @param registry The address of the LicenseRegistry contract
+    /// @param disputeModule The address of the DisputeModule contract
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
         address accessController,
         address ipAccountRegistry,
@@ -93,6 +105,12 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         ROYALTY_MODULE = RoyaltyModule(royaltyModule);
         LICENSE_REGISTRY = ILicenseRegistry(registry);
         DISPUTE_MODULE = IDisputeModule(disputeModule);
+    }
+
+    function initialize(address governance) public initializer {
+        __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
+        __GovernableUpgradeable_init(governance);
     }
 
     /// @notice Registers a policy framework manager into the contract, so it can add policy data for licenses.
@@ -106,7 +124,8 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         if (bytes(licenseUrl).length == 0 || licenseUrl.equal("")) {
             revert Errors.LicensingModule__EmptyLicenseUrl();
         }
-        _registeredFrameworkManagers[manager] = true;
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        $.registeredFrameworkManagers[manager] = true;
 
         emit PolicyFrameworkRegistered(manager, fwManager.name(), licenseUrl);
     }
@@ -126,14 +145,15 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         if (pol.mintingFee > 0 && !ROYALTY_MODULE.isWhitelistedRoyaltyToken(pol.mintingFeeToken)) {
             revert Errors.LicensingModule__MintingFeeTokenNotWhitelisted();
         }
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
         (uint256 polId, bool newPol) = DataUniqueness.addIdOrGetExisting(
             abi.encode(pol),
-            _hashedPolicies,
-            _totalPolicies
+            $.hashedPolicies,
+            $.totalPolicies
         );
         if (newPol) {
-            _totalPolicies = polId;
-            _policies[polId] = pol;
+            $.totalPolicies = polId;
+            $.policies[polId] = pol;
             emit PolicyRegistered(
                 polId,
                 pol.policyFramework,
@@ -183,7 +203,8 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         address receiver,
         bytes calldata royaltyContext
     ) external nonReentrant returns (uint256 licenseId) {
-        _verifyPolicy(_policies[policyId]);
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        _verifyPolicy($.policies[policyId]);
         if (!IP_ACCOUNT_REGISTRY.isIpAccount(licensorIpId)) {
             revert Errors.LicensingModule__LicensorNotRegistered();
         }
@@ -195,7 +216,7 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         }
         _verifyIpNotDisputed(licensorIpId);
 
-        bool isInherited = _policySetups[licensorIpId][policyId].isInherited;
+        bool isInherited = $.policySetups[licensorIpId][policyId].isInherited;
         Licensing.Policy memory pol = policy(policyId);
 
         IPolicyFrameworkManager pfm = IPolicyFrameworkManager(pol.policyFramework);
@@ -314,20 +335,23 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
     /// @param policyFramework The address of the policy framework manager
     /// @return isRegistered True if the framework is registered
     function isFrameworkRegistered(address policyFramework) external view returns (bool) {
-        return _registeredFrameworkManagers[policyFramework];
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.registeredFrameworkManagers[policyFramework];
     }
 
     /// @notice Returns amount of distinct licensing policies in the LicensingModule.
     /// @return totalPolicies The amount of policies
     function totalPolicies() external view returns (uint256) {
-        return _totalPolicies;
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.totalPolicies;
     }
 
     /// @notice Returns the policy data for policyId, reverts if not found.
     /// @param policyId The id of the policy
     /// @return pol The policy data
     function policy(uint256 policyId) public view returns (Licensing.Policy memory pol) {
-        pol = _policies[policyId];
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        pol = $.policies[policyId];
         _verifyPolicy(pol);
         return pol;
     }
@@ -336,7 +360,8 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
     /// @param pol The policy data in Policy struct
     /// @return policyId The id of the policy
     function getPolicyId(Licensing.Policy calldata pol) external view returns (uint256 policyId) {
-        return _hashedPolicies[keccak256(abi.encode(pol))];
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.hashedPolicies[keccak256(abi.encode(pol))];
     }
 
     /// @notice Returns the policy aggregator data for the given IP ID in the framework.
@@ -344,14 +369,16 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
     /// @param ipId The id of the IP asset
     /// @return data The encoded policy aggregator data to be decoded by the framework manager
     function policyAggregatorData(address framework, address ipId) external view returns (bytes memory) {
-        return _ipRights[framework][ipId];
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.ipRights[framework][ipId];
     }
 
     /// @notice Returns if policyId exists in the LicensingModule
     /// @param policyId The id of the policy
     /// @return isDefined True if the policy is defined
     function isPolicyDefined(uint256 policyId) public view returns (bool) {
-        return _policies[policyId].policyFramework != address(0);
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.policies[policyId].policyFramework != address(0);
     }
 
     /// @notice Returns the policy ids attached to an IP
@@ -402,7 +429,8 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         address ipId,
         uint256 index
     ) external view returns (Licensing.Policy memory) {
-        return _policies[_policySetPerIpId(isInherited, ipId).at(index)];
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.policies[_policySetPerIpId(isInherited, ipId).at(index)];
     }
 
     /// @notice Returns the status of a policy in an IP's policy set
@@ -415,7 +443,8 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         address ipId,
         uint256 policyId
     ) external view returns (uint256 index, bool isInherited, bool active) {
-        PolicySetup storage setup = _policySetups[ipId][policyId];
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        PolicySetup storage setup = $.policySetups[ipId][policyId];
         return (setup.index, setup.isInherited, setup.active);
     }
 
@@ -424,7 +453,8 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
     /// @param policyId The id of the policy to check if inherited
     /// @return isInherited True if the policy is inherited from a parent IP
     function isPolicyInherited(address ipId, uint256 policyId) external view returns (bool) {
-        return _policySetups[ipId][policyId].isInherited;
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.policySetups[ipId][policyId].isInherited;
     }
 
     /// @notice Returns if an IP is a derivative of another IP
@@ -432,26 +462,30 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
     /// @param childIpId The id of the child IP asset to check
     /// @return isParent True if the child IP is a derivative of the parent IP
     function isParent(address parentIpId, address childIpId) external view returns (bool) {
-        return _ipIdParents[childIpId].contains(parentIpId);
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.ipIdParents[childIpId].contains(parentIpId);
     }
 
     /// @notice Returns the list of parent IP assets for a given child IP asset
     /// @param ipId The id of the child IP asset to check
     /// @return parentIpIds The ids of the parent IP assets
     function parentIpIds(address ipId) external view returns (address[] memory) {
-        return _ipIdParents[ipId].values();
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.ipIdParents[ipId].values();
     }
 
     /// @notice Returns the total number of parents for an IP asset
     /// @param ipId The id of the IP asset to check
     /// @return totalParents The total number of parent IP assets
     function totalParentsForIpId(address ipId) external view returns (uint256) {
-        return _ipIdParents[ipId].length();
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.ipIdParents[ipId].length();
     }
 
     /// @dev Verifies that the framework is registered in the LicensingModule
     function _verifyRegisteredFramework(address policyFramework) private view {
-        if (!_registeredFrameworkManagers[policyFramework]) {
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        if (!$.registeredFrameworkManagers[policyFramework]) {
             revert Errors.LicensingModule__FrameworkNotFound();
         }
     }
@@ -464,16 +498,17 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         bool skipIfDuplicate
     ) private returns (uint256 index) {
         _verifyCanAddPolicy(policyId, ipId, isInherited);
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
         // Try and add the policy into the set.
         EnumerableSet.UintSet storage _pols = _policySetPerIpId(isInherited, ipId);
         if (!_pols.add(policyId)) {
             if (skipIfDuplicate) {
-                return _policySetups[ipId][policyId].index;
+                return $.policySetups[ipId][policyId].index;
             }
             revert Errors.LicensingModule__PolicyAlreadySetForIpId();
         }
         index = _pols.length() - 1;
-        PolicySetup storage setup = _policySetups[ipId][policyId];
+        PolicySetup storage setup = $.policySetups[ipId][policyId];
         // This should not happen, but just in case
         if (setup.isSet) {
             revert Errors.LicensingModule__PolicyAlreadySetForIpId();
@@ -516,9 +551,10 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
         // Add the policy of licenseIds[i] to the child. If the policy's already set from previous parents,
         // then the addition will be skipped.
         _addPolicyIdToIp({ ipId: childIpId, policyId: policyId, isInherited: true, skipIfDuplicate: true });
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
         // Set parent. We ignore the return value, since there are some cases where the same licensor gives the child
         // a License with another policy.
-        _ipIdParents[childIpId].add(licensor);
+        $.ipIdParents[childIpId].add(licensor);
     }
 
     /// @dev Verifies if the policyId can be added to the IP
@@ -535,17 +571,18 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
             // Owner of derivative is trying to set policies
             revert Errors.LicensingModule__DerivativesCannotAddPolicy();
         }
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
         // If we are here, this is a multiparent derivative
         // Checking for policy compatibility
         IPolicyFrameworkManager polManager = IPolicyFrameworkManager(policy(policyId).policyFramework);
-        Licensing.Policy memory pol = _policies[policyId];
+        Licensing.Policy memory pol = $.policies[policyId];
         (bool aggregatorChanged, bytes memory newAggregator) = polManager.processInheritedPolicies(
-            _ipRights[pol.policyFramework][ipId],
+            $.ipRights[pol.policyFramework][ipId],
             policyId,
             pol.frameworkData
         );
         if (aggregatorChanged) {
-            _ipRights[pol.policyFramework][ipId] = newAggregator;
+            $.ipRights[pol.policyFramework][ipId] = newAggregator;
         }
     }
 
@@ -558,7 +595,8 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
 
     /// @dev Returns the policy set for the given ipId
     function _policySetPerIpId(bool isInherited, address ipId) private view returns (EnumerableSet.UintSet storage) {
-        return _policiesPerIpId[keccak256(abi.encode(isInherited, ipId))];
+        LicensingModuleStorage storage $ = _getLicensingModuleStorage();
+        return $.policiesPerIpId[keccak256(abi.encode(isInherited, ipId))];
     }
 
     /// @dev Verifies if the IP is disputed
@@ -568,4 +606,20 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
             revert Errors.LicensingModule__DisputedIpId();
         }
     }
+
+    /// @dev Returns the storage struct of LicensingModule.
+    function _getLicensingModuleStorage() private pure returns (LicensingModuleStorage storage $) {
+        assembly {
+            $.slot := LicensingModuleStorageLocation
+        }
+    }
+
+    /// @dev Hook to authorize the upgrade according to UUPSUgradeable
+    /// @param newImplementation The address of the new implementation
+    function _authorizeUpgrade(address newImplementation)
+        internal
+        onlyProtocolAdmin
+        override
+    {}
+
 }

@@ -307,12 +307,24 @@ contract DeployHelper {
         }
         if (d.licensingModule) {
             require(address(ipAccountRegistry) != address(0), "DeployHelper Module: IPAccountRegistry required");
-            licensingModule = new LicensingModule(
-                getAccessController(),
-                address(ipAccountRegistry),
-                getRoyaltyModule(),
-                getLicenseRegistry(),
-                getDisputeModule()
+            address impl = address(
+                new LicensingModule(
+                    getAccessController(),
+                    address(ipAccountRegistry),
+                    getRoyaltyModule(),
+                    getLicenseRegistry(),
+                    getDisputeModule()
+                )
+            );
+            licensingModule = LicensingModule(
+                TestProxyHelper.deployUUPSProxy(
+                    impl,
+                    abi.encodeCall(
+                        LicensingModule.initialize, (
+                            getGovernance()
+                        )
+                    )
+                )
             );
             console2.log("DeployHelper: Using REAL LicensingModule");
         }

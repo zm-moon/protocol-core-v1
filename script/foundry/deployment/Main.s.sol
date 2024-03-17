@@ -115,7 +115,12 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
     function run() public {
         _beginBroadcast(); // BroadcastManager.s.sol
 
-        bool configByMultisig = vm.envBool("DEPLOYMENT_CONFIG_BY_MULTISIG");
+        bool configByMultisig;
+        try vm.envBool("DEPLOYMENT_CONFIG_BY_MULTISIG") returns (bool mult) {
+            configByMultisig = mult;
+        } catch  {
+            configByMultisig = false;
+        }
         console2.log("configByMultisig:", configByMultisig);
 
         if (configByMultisig) {
@@ -241,12 +246,25 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
 
         contractKey = "LicensingModule";
         _predeploy(contractKey);
-        licensingModule = new LicensingModule(
+
+        Options memory opts;
+        opts.constructorData = abi.encode(
             address(accessController),
             address(ipAccountRegistry),
             address(royaltyModule),
             address(licenseRegistry),
             address(disputeModule)
+        );
+        licensingModule = LicensingModule(
+            Upgrades.deployUUPSProxy(
+                "LicensingModule.sol",
+                abi.encodeCall(
+                    AccessController.initialize, (
+                        address(governance)
+                    )
+                ),
+                opts
+            )
         );
         _postdeploy(contractKey, address(licensingModule));
 
