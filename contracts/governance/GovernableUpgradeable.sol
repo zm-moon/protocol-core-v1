@@ -12,7 +12,6 @@ import { GovernanceLib } from "../lib/GovernanceLib.sol";
 /// @title Governable
 /// @dev All contracts managed by governance should inherit from this contract.
 abstract contract GovernableUpgradeable is IGovernable, Initializable {
-    
     /// @dev Storage for GovernableUpgradeable
     /// @param governance The address of the governance.
     /// @custom:storage-location erc7201:story-protocol.GovernableUpgradeable

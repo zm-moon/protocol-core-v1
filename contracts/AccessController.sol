@@ -43,7 +43,8 @@ contract AccessController is IAccessController, GovernableUpgradeable, UUPSUpgra
     }
 
     // keccak256(abi.encode(uint256(keccak256("story-protocol.AccessController")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 private constant AccessControllerStorageLocation = 0xe80df7f3a04d1e1a0b61a4a820184d4b4a2f8a6a808f315dbcc7b502f40b1800;
+    bytes32 private constant AccessControllerStorageLocation =
+        0xe80df7f3a04d1e1a0b61a4a820184d4b4a2f8a6a808f315dbcc7b502f40b1800;
 
     /// Constructor
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -246,9 +247,5 @@ contract AccessController is IAccessController, GovernableUpgradeable, UUPSUpgra
 
     /// @dev Hook to authorize the upgrade according to UUPSUgradeable
     /// @param newImplementation The address of the new implementation
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        onlyProtocolAdmin
-        override
-    {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
 }

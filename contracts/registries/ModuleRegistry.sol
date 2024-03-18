@@ -30,7 +30,8 @@ contract ModuleRegistry is IModuleRegistry, GovernableUpgradeable, UUPSUpgradeab
     }
 
     // keccak256(abi.encode(uint256(keccak256("story-protocol.ModuleRegistry")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 private constant ModuleRegistryStorageLocation = 0xa17d78ae7aee011aefa3f1388acb36741284b44eb3fcffe23ecc3a736eaa2700;
+    bytes32 private constant ModuleRegistryStorageLocation =
+        0xa17d78ae7aee011aefa3f1388acb36741284b44eb3fcffe23ecc3a736eaa2700;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -42,7 +43,7 @@ contract ModuleRegistry is IModuleRegistry, GovernableUpgradeable, UUPSUpgradeab
     function initialize(address governance_) public initializer {
         __GovernableUpgradeable_init(governance_);
         __UUPSUpgradeable_init();
-        
+
         // Register the default module types
         _getModuleRegistryStorage().allModuleTypes[MODULE_TYPE_DEFAULT] = type(IModule).interfaceId;
     }
@@ -194,9 +195,5 @@ contract ModuleRegistry is IModuleRegistry, GovernableUpgradeable, UUPSUpgradeab
 
     /// @dev Hook to authorize the upgrade according to UUPSUgradeable
     /// @param newImplementation The address of the new implementation
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        onlyProtocolAdmin
-        override
-    {}
+    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
 }
