@@ -293,7 +293,17 @@ contract DeployHelper {
 
     function _deployModuleConditionally(DeployModuleCondition memory d) public {
         if (d.royaltyModule) {
-            royaltyModule = new RoyaltyModule(getGovernance());
+            address impl = address(new RoyaltyModule());
+            royaltyModule = RoyaltyModule(
+                TestProxyHelper.deployUUPSProxy(
+                    impl,
+                    abi.encodeCall(
+                        RoyaltyModule.initialize, (
+                            address(getGovernance())
+                        )
+                    )
+                )
+            );
             console2.log("DeployHelper: Using REAL RoyaltyModule");
             postDeployConditions.royaltyModule_configure = true;
         }

@@ -23,6 +23,10 @@ contract MockRoyaltyModule is BaseModule, IRoyaltyModule {
         LICENSING_MODULE = _licensingModule;
     }
 
+    function licensingModule() external view override returns (address) {
+        return LICENSING_MODULE;
+    }
+
     function whitelistRoyaltyPolicy(address _royaltyPolicy, bool _allowed) external {
         isWhitelistedRoyaltyPolicy[_royaltyPolicy] = _allowed;
     }

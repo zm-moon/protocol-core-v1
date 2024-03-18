@@ -216,7 +216,16 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
         contractKey = "RoyaltyModule";
         _predeploy(contractKey);
-        royaltyModule = new RoyaltyModule(address(governance));
+        royaltyModule = RoyaltyModule(
+            Upgrades.deployUUPSProxy(
+                "RoyaltyModule.sol",
+                abi.encodeCall(
+                    RoyaltyModule.initialize, (
+                        address(governance)
+                    )
+                )
+            )
+        );
         _postdeploy(contractKey, address(royaltyModule));
 
         contractKey = "DisputeModule";
