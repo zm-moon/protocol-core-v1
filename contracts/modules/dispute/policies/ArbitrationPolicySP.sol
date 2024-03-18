@@ -3,8 +3,9 @@ pragma solidity 0.8.23;
 
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-import { Governable } from "../../../governance/Governable.sol";
+import { GovernableUpgradeable } from "../../../governance/GovernableUpgradeable.sol";
 import { IDisputeModule } from "../../../interfaces/modules/dispute/IDisputeModule.sol";
 import { IArbitrationPolicy } from "../../../interfaces/modules/dispute/policies/IArbitrationPolicy.sol";
 import { Errors } from "../../../lib/Errors.sol";
@@ -12,14 +13,17 @@ import { Errors } from "../../../lib/Errors.sol";
 /// @title Story Protocol Arbitration Policy
 /// @notice The Story Protocol arbitration policy is a simple policy that requires the dispute initiator to pay a fixed
 ///         amount of tokens to raise a dispute and refunds that amount if the dispute initiator wins the dispute.
-contract ArbitrationPolicySP is IArbitrationPolicy, Governable {
+contract ArbitrationPolicySP is IArbitrationPolicy, GovernableUpgradeable, UUPSUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @notice Returns the dispute module address
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable DISPUTE_MODULE;
     /// @notice Returns the payment token address
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable PAYMENT_TOKEN;
     /// @notice Returns the arbitration price
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     uint256 public immutable ARBITRATION_PRICE;
 
     /// @notice Restricts the calls to the DisputeModule
@@ -28,18 +32,29 @@ contract ArbitrationPolicySP is IArbitrationPolicy, Governable {
         _;
     }
 
+    /// Constructor
+    /// @param _disputeModule The dispute module address
+    /// @param _paymentToken The ERC20 payment token address
+    /// @param _arbitrationPrice The arbitration price
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
         address _disputeModule,
         address _paymentToken,
-        uint256 _arbitrationPrice,
-        address _governable
-    ) Governable(_governable) {
+        uint256 _arbitrationPrice
+    ) {
         if (_disputeModule == address(0)) revert Errors.ArbitrationPolicySP__ZeroDisputeModule();
         if (_paymentToken == address(0)) revert Errors.ArbitrationPolicySP__ZeroPaymentToken();
 
         DISPUTE_MODULE = _disputeModule;
         PAYMENT_TOKEN = _paymentToken;
         ARBITRATION_PRICE = _arbitrationPrice;
+    }
+
+    /// @notice Initializes the contract
+    /// @param governance The address of the governance contract
+    function initialize(address governance) public initializer {
+        __GovernableUpgradeable_init(governance);
+        __UUPSUpgradeable_init();
     }
 
     /// @notice Executes custom logic on raising dispute.
@@ -74,8 +89,12 @@ contract ArbitrationPolicySP is IArbitrationPolicy, Governable {
     /// @dev Enforced to be only callable by the governance protocol admin.
     function governanceWithdraw() external onlyProtocolAdmin {
         uint256 balance = IERC20(PAYMENT_TOKEN).balanceOf(address(this));
-        IERC20(PAYMENT_TOKEN).safeTransfer(governance, balance);
+        IERC20(PAYMENT_TOKEN).safeTransfer(msg.sender, balance);
 
         emit GovernanceWithdrew(balance);
     }
+
+    /// @notice Hook that is called before any upgrade
+    /// @param newImplementation Address of the new implementation
+    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
 }

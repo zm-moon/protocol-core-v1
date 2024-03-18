@@ -345,11 +345,22 @@ contract DeployHelper {
 
     function _deployPolicyConditionally(DeployPolicyCondition memory d) public {
         if (d.arbitrationPolicySP) {
-            arbitrationPolicySP = new ArbitrationPolicySP(
-                getDisputeModule(),
-                address(erc20),
-                ARBITRATION_PRICE,
-                getGovernance()
+            address impl = address(
+                new ArbitrationPolicySP(
+                    getDisputeModule(),
+                    address(erc20),
+                    ARBITRATION_PRICE
+                )
+            );
+            arbitrationPolicySP = ArbitrationPolicySP(
+                TestProxyHelper.deployUUPSProxy(
+                    impl,
+                    abi.encodeCall(
+                        ArbitrationPolicySP.initialize, (
+                            getGovernance()
+                        )
+                    )
+                )
             );
             console2.log("DeployHelper: Using REAL ArbitrationPolicySP");
         } else {

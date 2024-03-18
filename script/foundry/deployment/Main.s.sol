@@ -296,11 +296,21 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
         contractKey = "ArbitrationPolicySP";
         _predeploy(contractKey);
-        arbitrationPolicySP = new ArbitrationPolicySP(
+        opts.constructorData = abi.encode(
             address(disputeModule),
             address(erc20),
-            ARBITRATION_PRICE,
-            address(governance)
+            ARBITRATION_PRICE
+        );
+        arbitrationPolicySP = ArbitrationPolicySP(
+            Upgrades.deployUUPSProxy(
+                "ArbitrationPolicySP.sol",
+                abi.encodeCall(
+                    ArbitrationPolicySP.initialize, (
+                        address(governance)
+                    )
+                ),
+                opts
+            )
         );
         _postdeploy(contractKey, address(arbitrationPolicySP));
 

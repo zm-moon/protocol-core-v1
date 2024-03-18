@@ -13,6 +13,7 @@ import { PILPolicy } from "contracts/modules/licensing/PILPolicyFrameworkManager
 import { IP } from "contracts/lib/IP.sol";
 // test
 import { BaseTest } from "test/foundry/utils/BaseTest.t.sol";
+import { TestProxyHelper } from "test/foundry/utils/TestProxyHelper.sol";
 
 contract DisputeModuleTest is BaseTest {
     event TagWhitelistUpdated(bytes32 tag, bool allowed);
@@ -55,11 +56,22 @@ contract DisputeModuleTest is BaseTest {
         USDC.mint(ipAccount1, 1000 * 10 ** 6);
 
         // second arbitration policy
-        arbitrationPolicySP2 = new ArbitrationPolicySP(
-            getDisputeModule(),
-            address(USDC),
-            ARBITRATION_PRICE,
-            getGovernance()
+        address impl = address(
+            new ArbitrationPolicySP(
+                getDisputeModule(),
+                address(USDC),
+                ARBITRATION_PRICE
+            )
+        );
+        arbitrationPolicySP2 = ArbitrationPolicySP(
+            TestProxyHelper.deployUUPSProxy(
+                impl,
+                abi.encodeCall(
+                    ArbitrationPolicySP.initialize, (
+                        getGovernance()
+                    )
+                )
+            )
         );
 
         vm.startPrank(u.admin);
