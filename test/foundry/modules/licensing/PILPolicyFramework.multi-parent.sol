@@ -14,7 +14,6 @@ import { PILPolicyFrameworkManager } from "contracts/modules/licensing/PILPolicy
 import { BaseTest } from "test/foundry/utils/BaseTest.t.sol";
 
 contract PILPolicyFrameworkMultiParentTest is BaseTest {
-    PILPolicyFrameworkManager internal pilFramework;
     string internal licenseUrl = "https://example.com/license";
     address internal ipId1;
     address internal ipId2;
@@ -24,17 +23,6 @@ contract PILPolicyFrameworkMultiParentTest is BaseTest {
     uint256[] internal licenses;
 
     mapping(address => address) internal ipIdToOwner;
-
-    modifier withPILPolicySimple(
-        string memory name,
-        bool commercial,
-        bool derivatives,
-        bool reciprocal
-    ) {
-        _mapPILPolicySimple(name, commercial, derivatives, reciprocal, 100);
-        _addPILPolicyFromMapping(name, address(pilFramework));
-        _;
-    }
 
     modifier withLicense(
         string memory policyName,
@@ -68,15 +56,9 @@ contract PILPolicyFrameworkMultiParentTest is BaseTest {
         licensingModule = ILicensingModule(getLicensingModule());
         royaltyModule = IRoyaltyModule(getRoyaltyModule());
 
-        pilFramework = new PILPolicyFrameworkManager(
-            address(accessController),
-            address(ipAccountRegistry),
-            address(licensingModule),
-            "PILPolicyFrameworkManager",
-            licenseUrl
-        );
+        _setPILPolicyFrameworkManager();
 
-        licensingModule.registerPolicyFrameworkManager(address(pilFramework));
+        licensingModule.registerPolicyFrameworkManager(address(_pilFramework()));
 
         mockNFT.mintId(bob, 1);
         mockNFT.mintId(bob, 2);
@@ -139,7 +121,7 @@ contract PILPolicyFrameworkMultiParentTest is BaseTest {
         // Save a new policy (change some value to change the policyId)
         _mapPILPolicySimple("other", true, true, true, 100);
         _getMappedPilPolicy("other").attribution = !_getMappedPilPolicy("other").attribution;
-        _addPILPolicyFromMapping("other", address(pilFramework));
+        _addPILPolicyFromMapping("other", address(_pilFramework()));
 
         vm.prank(ipId3);
         licenses.push(licensingModule.mintLicense(_getPilPolicyId("other"), ipId3, 1, alice, ""));
@@ -422,11 +404,11 @@ contract PILPolicyFrameworkMultiParentTest is BaseTest {
         RegisterPILPolicyParams memory inputA,
         RegisterPILPolicyParams memory inputB
     ) internal returns (uint256 polAId, uint256 polBId) {
-        polAId = pilFramework.registerPolicy(inputA);
+        polAId = _pilFramework().registerPolicy(inputA);
         vm.prank(ipId1);
         licenses.push(licensingModule.mintLicense(polAId, ipId1, 1, alice, ""));
 
-        polBId = pilFramework.registerPolicy(inputB);
+        polBId = _pilFramework().registerPolicy(inputB);
         vm.prank(ipId2);
         licenses.push(licensingModule.mintLicense(polBId, ipId2, 2, alice, ""));
     }

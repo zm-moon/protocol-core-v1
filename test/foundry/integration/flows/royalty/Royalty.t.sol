@@ -28,7 +28,7 @@ contract Flows_Integration_Disputes is BaseIntegration {
         super.setUp();
 
         // Register PIL Framework
-        _deployLFM_PIL();
+        _setPILPolicyFrameworkManager();
 
         royaltyPolicyAddr = address(royaltyPolicyLAP);
         mintingFeeToken = address(erc20);

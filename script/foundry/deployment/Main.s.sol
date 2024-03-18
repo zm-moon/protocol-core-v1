@@ -309,12 +309,22 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
         _postdeploy(contractKey, address(ancestorsVaultImpl));
 
         _predeploy("PILPolicyFrameworkManager");
-        pilPfm = new PILPolicyFrameworkManager(
+        opts.constructorData = abi.encode(
             address(accessController),
             address(ipAccountRegistry),
-            address(licensingModule),
-            "pil",
-            "https://github.com/storyprotocol/protocol-core/blob/main/PIL-Beta-2024-02.pdf"
+            address(licensingModule)
+        );
+        pilPfm = PILPolicyFrameworkManager(
+            Upgrades.deployUUPSProxy(
+                "PILPolicyFrameworkManager.sol",
+                abi.encodeCall(
+                    PILPolicyFrameworkManager.initialize, (
+                        "pil",
+                        "https://github.com/storyprotocol/protocol-core/blob/main/PIL-Beta-2024-02.pdf"
+                    )
+                ),
+                opts
+            )
         );
         _postdeploy("PILPolicyFrameworkManager", address(pilPfm));
 

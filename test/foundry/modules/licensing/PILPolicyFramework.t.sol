@@ -14,8 +14,6 @@ import { MockTokenGatedHook } from "test/foundry/mocks/MockTokenGatedHook.sol";
 import { BaseTest } from "test/foundry/utils/BaseTest.t.sol";
 
 contract PILPolicyFrameworkTest is BaseTest {
-    PILPolicyFrameworkManager internal pilFramework;
-
     string public licenseUrl = "https://example.com/license";
     address public ipId1;
     address public ipId2;
@@ -44,15 +42,9 @@ contract PILPolicyFrameworkTest is BaseTest {
         accessController = IAccessController(getAccessController());
         licensingModule = ILicensingModule(getLicensingModule());
 
-        pilFramework = new PILPolicyFrameworkManager(
-            address(accessController),
-            address(ipAccountRegistry),
-            address(licensingModule),
-            "PILPolicyFrameworkManager",
-            licenseUrl
-        );
+        _setPILPolicyFrameworkManager();
 
-        licensingModule.registerPolicyFrameworkManager(address(pilFramework));
+        licensingModule.registerPolicyFrameworkManager(address(_pilFramework()));
 
         mockNFT.mintId(alice, 1);
         mockNFT.mintId(alice, 2);
@@ -76,8 +68,8 @@ contract PILPolicyFrameworkTest is BaseTest {
         RegisterPILPolicyParams memory inputA = _getMappedPilParams("pol_a");
         inputA.policy.territories = territories;
         inputA.policy.distributionChannels = distributionChannels;
-        uint256 policyId = pilFramework.registerPolicy(inputA);
-        PILPolicy memory policy = pilFramework.getPILPolicy(policyId);
+        uint256 policyId = _pilFramework().registerPolicy(inputA);
+        PILPolicy memory policy = _pilFramework().getPILPolicy(policyId);
         assertEq(keccak256(abi.encode(policy)), keccak256(abi.encode(inputA.policy)));
     }
 
@@ -99,7 +91,7 @@ contract PILPolicyFrameworkTest is BaseTest {
         });
 
         vm.prank(address(licensingModule));
-        bool verified = pilFramework.verifyLink(0, alice, ipId1, address(0), abi.encode(policyData));
+        bool verified = _pilFramework().verifyLink(0, alice, ipId1, address(0), abi.encode(policyData));
         assertFalse(verified);
     }
 
@@ -121,7 +113,7 @@ contract PILPolicyFrameworkTest is BaseTest {
         });
 
         vm.prank(address(licensingModule));
-        bool verified = pilFramework.verifyMint(alice, false, ipId1, alice, 2, abi.encode(policyData));
+        bool verified = _pilFramework().verifyMint(alice, false, ipId1, alice, 2, abi.encode(policyData));
         assertFalse(verified);
     }
 
@@ -143,13 +135,13 @@ contract PILPolicyFrameworkTest is BaseTest {
         });
 
         vm.prank(address(licensingModule));
-        bool verified = pilFramework.verifyMint(alice, false, ipId1, alice, 2, abi.encode(policyData));
+        bool verified = _pilFramework().verifyMint(alice, false, ipId1, alice, 2, abi.encode(policyData));
         assertFalse(verified);
     }
 
     function test_PILPolicyFrameworkManager__getAggregator_revert_emptyAggregator() public {
         vm.expectRevert(PILFrameworkErrors.PILPolicyFrameworkManager__RightsNotFound.selector);
-        pilFramework.getAggregator(ipId1);
+        _pilFramework().getAggregator(ipId1);
     }
 
     /////////////////////////////////////////////////////////////
@@ -170,7 +162,7 @@ contract PILPolicyFrameworkTest is BaseTest {
         // CHECK: commercialAttribution = true should revert
         inputA.policy.commercialAttribution = true;
         vm.expectRevert(PILFrameworkErrors.PILPolicyFrameworkManager__CommercialDisabled_CantAddAttribution.selector);
-        pilFramework.registerPolicy(inputA);
+        _pilFramework().registerPolicy(inputA);
 
         // reset
         inputA.policy.commercialAttribution = false;
@@ -181,7 +173,7 @@ contract PILPolicyFrameworkTest is BaseTest {
         vm.expectRevert(
             PILFrameworkErrors.PILPolicyFrameworkManager__CommercialDisabled_CantAddCommercializers.selector
         );
-        pilFramework.registerPolicy(inputA);
+        _pilFramework().registerPolicy(inputA);
 
         // reset
         inputA.policy.commercializerChecker = address(0);
@@ -190,7 +182,7 @@ contract PILPolicyFrameworkTest is BaseTest {
         // CHECK: No rev share should be set; revert
         inputA.policy.commercialRevShare = 1;
         vm.expectRevert(PILFrameworkErrors.PILPolicyFrameworkManager__CommercialDisabled_CantAddRevShare.selector);
-        pilFramework.registerPolicy(inputA);
+        _pilFramework().registerPolicy(inputA);
 
         // reset
         inputA.policy.commercialRevShare = 0;
@@ -198,7 +190,7 @@ contract PILPolicyFrameworkTest is BaseTest {
         // CHECK: royaltyPolicy != address(0) should revert
         inputA.royaltyPolicy = address(0x123123);
         vm.expectRevert(PILFrameworkErrors.PILPolicyFrameworkManager__CommercialDisabled_CantAddRoyaltyPolicy.selector);
-        pilFramework.registerPolicy(inputA);
+        _pilFramework().registerPolicy(inputA);
 
         // reset
         inputA.royaltyPolicy = address(0);
@@ -206,7 +198,7 @@ contract PILPolicyFrameworkTest is BaseTest {
         // CHECK: mintingFee > 0 should revert
         inputA.mintingFee = 100;
         vm.expectRevert(PILFrameworkErrors.PILPolicyFrameworkManager__CommercialDisabled_CantAddMintingFee.selector);
-        pilFramework.registerPolicy(inputA);
+        _pilFramework().registerPolicy(inputA);
 
         // reset
         inputA.mintingFee = 0;
@@ -226,7 +218,7 @@ contract PILPolicyFrameworkTest is BaseTest {
         // CHECK: royaltyPolicy == address(0) should revert
         inputA.royaltyPolicy = address(0);
         vm.expectRevert(PILFrameworkErrors.PILPolicyFrameworkManager__CommercialEnabled_RoyaltyPolicyRequired.selector);
-        pilFramework.registerPolicy(inputA);
+        _pilFramework().registerPolicy(inputA);
 
         // reset
         inputA.royaltyPolicy = address(0x123123);
@@ -244,8 +236,8 @@ contract PILPolicyFrameworkTest is BaseTest {
         inputA.policy.commercialAttribution = true;
         inputA.policy.commercializerChecker = address(0);
         inputA.policy.commercializerCheckerData = "";
-        uint256 policyId = pilFramework.registerPolicy(inputA);
-        PILPolicy memory policy = pilFramework.getPILPolicy(policyId);
+        uint256 policyId = _pilFramework().registerPolicy(inputA);
+        PILPolicy memory policy = _pilFramework().getPILPolicy(policyId);
         assertEq(keccak256(abi.encode(policy)), keccak256(abi.encode(inputA.policy)));
     }
 
@@ -283,12 +275,12 @@ contract PILPolicyFrameworkTest is BaseTest {
                 invalidCommercializerChecker
             )
         );
-        pilFramework.registerPolicy(input);
+        _pilFramework().registerPolicy(input);
 
         input.policy.commercializerChecker = address(tokenGatedHook);
         input.policy.commercializerCheckerData = invalideCommercializerCheckerData;
         vm.expectRevert("MockTokenGatedHook: Invalid token address");
-        pilFramework.registerPolicy(input);
+        _pilFramework().registerPolicy(input);
     }
 
     function test_PILPolicyFrameworkManager__derivatives_notAllowed_revert_settingIncompatibleTerms() public {
@@ -304,17 +296,17 @@ contract PILPolicyFrameworkTest is BaseTest {
         inputA.policy.derivativesAttribution = true;
         // derivativesAttribution = true should revert
         vm.expectRevert(PILFrameworkErrors.PILPolicyFrameworkManager__DerivativesDisabled_CantAddAttribution.selector);
-        pilFramework.registerPolicy(inputA);
+        _pilFramework().registerPolicy(inputA);
         // Requesting approval for derivatives should revert
         inputA.policy.derivativesAttribution = false;
         inputA.policy.derivativesApproval = true;
         vm.expectRevert(PILFrameworkErrors.PILPolicyFrameworkManager__DerivativesDisabled_CantAddApproval.selector);
-        pilFramework.registerPolicy(inputA);
+        _pilFramework().registerPolicy(inputA);
         // Setting reciprocal license should revert
         inputA.policy.derivativesApproval = false;
         inputA.policy.derivativesReciprocal = true;
         vm.expectRevert(PILFrameworkErrors.PILPolicyFrameworkManager__DerivativesDisabled_CantAddReciprocal.selector);
-        pilFramework.registerPolicy(inputA);
+        _pilFramework().registerPolicy(inputA);
     }
 
     function test_PILPolicyFrameworkManager__derivatives_valuesSetCorrectly() public {
@@ -327,8 +319,8 @@ contract PILPolicyFrameworkTest is BaseTest {
         });
         RegisterPILPolicyParams memory inputA = _getMappedPilParams("pol_a");
         inputA.policy.derivativesAttribution = true;
-        uint256 policyId = pilFramework.registerPolicy(inputA);
-        PILPolicy memory policy = pilFramework.getPILPolicy(policyId);
+        uint256 policyId = _pilFramework().registerPolicy(inputA);
+        PILPolicy memory policy = _pilFramework().getPILPolicy(policyId);
         assertEq(keccak256(abi.encode(policy)), keccak256(abi.encode(inputA.policy)));
     }
 
@@ -346,16 +338,16 @@ contract PILPolicyFrameworkTest is BaseTest {
         });
         RegisterPILPolicyParams memory inputA = _getMappedPilParams("pol_a");
         inputA.policy.derivativesApproval = true;
-        uint256 policyId = pilFramework.registerPolicy(inputA);
+        uint256 policyId = _pilFramework().registerPolicy(inputA);
         vm.prank(alice);
         licensingModule.addPolicyToIp(ipId1, policyId);
 
         uint256 licenseId = licensingModule.mintLicense(policyId, ipId1, 1, alice, "");
-        assertFalse(pilFramework.isDerivativeApproved(licenseId, ipId2));
+        assertFalse(_pilFramework().isDerivativeApproved(licenseId, ipId2));
 
         vm.prank(licenseRegistry.licensorIpId(licenseId));
-        pilFramework.setApproval(licenseId, ipId2, false);
-        assertFalse(pilFramework.isDerivativeApproved(licenseId, ipId2));
+        _pilFramework().setApproval(licenseId, ipId2, false);
+        assertFalse(_pilFramework().isDerivativeApproved(licenseId, ipId2));
 
         uint256[] memory licenseIds = new uint256[](1);
         licenseIds[0] = licenseId;
@@ -375,17 +367,17 @@ contract PILPolicyFrameworkTest is BaseTest {
         });
         RegisterPILPolicyParams memory inputA = _getMappedPilParams("pol_a");
         inputA.policy.derivativesApproval = true;
-        uint256 policyId = pilFramework.registerPolicy(inputA);
+        uint256 policyId = _pilFramework().registerPolicy(inputA);
 
         vm.prank(alice);
         licensingModule.addPolicyToIp(ipId1, policyId);
 
         uint256 licenseId = licensingModule.mintLicense(policyId, ipId1, 1, alice, "");
-        assertFalse(pilFramework.isDerivativeApproved(licenseId, ipId2));
+        assertFalse(_pilFramework().isDerivativeApproved(licenseId, ipId2));
 
         vm.prank(licenseRegistry.licensorIpId(licenseId));
-        pilFramework.setApproval(licenseId, ipId2, true);
-        assertTrue(pilFramework.isDerivativeApproved(licenseId, ipId2));
+        _pilFramework().setApproval(licenseId, ipId2, true);
+        assertTrue(_pilFramework().isDerivativeApproved(licenseId, ipId2));
 
         uint256[] memory licenseIds = new uint256[](1);
         licenseIds[0] = licenseId;
@@ -409,7 +401,7 @@ contract PILPolicyFrameworkTest is BaseTest {
         });
         RegisterPILPolicyParams memory inputA = _getMappedPilParams("pol_a");
         inputA.transferable = true;
-        uint256 policyId = pilFramework.registerPolicy(inputA);
+        uint256 policyId = _pilFramework().registerPolicy(inputA);
         vm.prank(alice);
         licensingModule.addPolicyToIp(ipId1, policyId);
         uint256 licenseId = licensingModule.mintLicense(policyId, ipId1, 1, licenseHolder, "");
@@ -431,7 +423,7 @@ contract PILPolicyFrameworkTest is BaseTest {
         });
         RegisterPILPolicyParams memory inputA = _getMappedPilParams("pol_a");
         inputA.transferable = false;
-        uint256 policyId = pilFramework.registerPolicy(inputA);
+        uint256 policyId = _pilFramework().registerPolicy(inputA);
         vm.prank(alice);
         licensingModule.addPolicyToIp(ipId1, policyId);
         uint256 licenseId = licensingModule.mintLicense(policyId, ipId1, 1, licenseHolder, "");
@@ -466,7 +458,7 @@ contract PILPolicyFrameworkTest is BaseTest {
             contentRestrictions: emptyStringArray
         });
 
-        string memory actualJson = pilFramework.policyToJson(abi.encode(policyData));
+        string memory actualJson = _pilFramework().policyToJson(abi.encode(policyData));
         /* solhint-disable */
         string
             memory expectedJson = '{"trait_type": "Attribution", "value": "false"},{"trait_type": "Commercial Use", "value": "false"},{"trait_type": "Commercial Attribution", "value": "true"},{"trait_type": "Commercial Revenue Share", "max_value": 1000, "value": 0},{"trait_type": "Commercializer Check", "value": "0x0000000000000000000000000000000000000000"},{"trait_type": "Derivatives Allowed", "value": "true"},{"trait_type": "Derivatives Attribution", "value": "false"},{"trait_type": "Derivatives Approval", "value": "false"},{"trait_type": "Derivatives Reciprocal", "value": "false"},{"trait_type": "Territories", "value": ["test1","test2"]},{"trait_type": "Distribution Channels", "value": ["test3"]},';

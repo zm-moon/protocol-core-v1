@@ -5,7 +5,7 @@ pragma solidity 0.8.23;
 // external
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 // contracts
 import { IHookModule } from "../../interfaces/modules/base/IHookModule.sol";
@@ -25,7 +25,7 @@ contract PILPolicyFrameworkManager is
     IPILPolicyFrameworkManager,
     BasePolicyFrameworkManager,
     LicensorApprovalChecker,
-    ReentrancyGuard
+    ReentrancyGuardUpgradeable
 {
     using ERC165Checker for address;
     using Strings for *;
@@ -37,17 +37,23 @@ contract PILPolicyFrameworkManager is
     constructor(
         address accessController,
         address ipAccountRegistry,
-        address licensing,
-        string memory name_,
-        string memory licenseUrl_
+        address licensing
     )
-        BasePolicyFrameworkManager(licensing, name_, licenseUrl_)
+        BasePolicyFrameworkManager(licensing)
         LicensorApprovalChecker(
             accessController,
             ipAccountRegistry,
             address(ILicensingModule(licensing).LICENSE_REGISTRY())
         )
     {}
+
+    function initialize(
+        string memory name,
+        string memory licenseTextUrl
+    ) external initializer {
+        __BasePolicyFrameworkManager_init(name, licenseTextUrl);
+        __ReentrancyGuard_init();
+    }
 
     /// @notice Registers a new policy to the registry
     /// @dev Internally, this function must generate a Licensing.Policy struct and call registerPolicy.

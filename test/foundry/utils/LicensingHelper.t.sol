@@ -12,7 +12,7 @@ import { IRoyaltyPolicyLAP } from "../../../contracts/interfaces/modules/royalty
 import { BasePolicyFrameworkManager } from "../../../contracts/modules/licensing/BasePolicyFrameworkManager.sol";
 // solhint-disable-next-line max-line-length
 import { PILPolicyFrameworkManager, PILPolicy, RegisterPILPolicyParams } from "../../../contracts/modules/licensing/PILPolicyFrameworkManager.sol";
-
+import { TestProxyHelper } from "./TestProxyHelper.sol";
 // test
 // solhint-disable-next-line max-line-length
 import { MockPolicyFrameworkManager, MockPolicyFrameworkConfig } from "test/foundry/mocks/licensing/MockPolicyFrameworkManager.sol";
@@ -61,7 +61,18 @@ contract LicensingHelper {
     //////////////////////////////////////////////////////////////////////////*/
 
     modifier withLFM_PIL() {
-        _deployLFM_PIL();
+        _setPILPolicyFrameworkManager();
+        _;
+    }
+
+    modifier withPILPolicySimple(
+        string memory name,
+        bool commercial,
+        bool derivatives,
+        bool reciprocal
+    ) {
+        _mapPILPolicySimple(name, commercial, derivatives, reciprocal, 100);
+        _addPILPolicyFromMapping(name, address(_pilFramework()));
         _;
     }
 
@@ -70,15 +81,30 @@ contract LicensingHelper {
     //////////////////////////////////////////////////////////////////////////*/
 
     function _setPILPolicyFrameworkManager() internal {
-        PILPolicyFrameworkManager pilPfm = new PILPolicyFrameworkManager(
+        _deployPILFramework("license Url");
+        LICENSING_MODULE.registerPolicyFrameworkManager(pfm["pil"]);
+    }
+
+    function _deployPILFramework(string memory licenseUrl) internal returns (address) {
+        PILPolicyFrameworkManager impl = new PILPolicyFrameworkManager(
             address(ACCESS_CONTROLLER),
             address(IP_ACCOUNT_REGISTRY),
-            address(LICENSING_MODULE),
-            "PIL_MINT_PAYMENT",
-            "license Url"
+            address(LICENSING_MODULE)
         );
-        pfm["pil"] = address(pilPfm);
-        LICENSING_MODULE.registerPolicyFrameworkManager(address(pilPfm));
+        pfm["pil"] = TestProxyHelper.deployUUPSProxy(
+            address(impl),
+            abi.encodeCall(
+                PILPolicyFrameworkManager.initialize, (
+                    "PIL_MINT_PAYMENT",
+                    licenseUrl
+                )
+            )
+        );
+        return pfm["pil"];
+    }
+
+    function _pilFramework() internal view returns (PILPolicyFrameworkManager) {
+        return PILPolicyFrameworkManager(pfm["pil"]);
     }
 
     function _addPILPolicy(
@@ -206,40 +232,5 @@ contract LicensingHelper {
     function _getPilPolicyId(string memory name) internal view returns (uint256) {
         string memory pName = string(abi.encodePacked("pil_", name));
         return policyIds[pName];
-    }
-
-    function _createMockPolicyFrameworkManager(
-        bool supportVerifyLink,
-        bool supportVerifyMint
-    ) private returns (BasePolicyFrameworkManager) {
-        return
-            BasePolicyFrameworkManager(
-                new MockPolicyFrameworkManager(
-                    MockPolicyFrameworkConfig({
-                        licensingModule: address(LICENSING_MODULE),
-                        name: "mock",
-                        licenseUrl: "license url",
-                        royaltyPolicy: address(0xdeadbeef)
-                    })
-                )
-            );
-    }
-
-    function _deployLFM_PIL() internal {
-        BasePolicyFrameworkManager _pfm = BasePolicyFrameworkManager(
-            new PILPolicyFrameworkManager(
-                address(ACCESS_CONTROLLER),
-                address(IP_ACCOUNT_REGISTRY),
-                address(LICENSING_MODULE),
-                "pil",
-                "license Url"
-            )
-        );
-        LICENSING_MODULE.registerPolicyFrameworkManager(address(_pfm));
-        pfm["pil"] = address(_pfm);
-    }
-
-    function _pilFramework() internal view returns (PILPolicyFrameworkManager) {
-        return PILPolicyFrameworkManager(pfm["pil"]);
     }
 }
