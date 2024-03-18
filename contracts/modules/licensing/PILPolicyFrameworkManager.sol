@@ -34,6 +34,11 @@ contract PILPolicyFrameworkManager is
     bytes32 private constant _EMPTY_STRING_ARRAY_HASH =
         0x569e75fc77c1a856f6daaf9e69d8a9566ca34aa47f9133711ce065a571af0cfd;
 
+    /// Constructor
+    /// @param accessController the address of the AccessController
+    /// @param ipAccountRegistry the address of the IPAccountRegistry
+    /// @param licensing the address of the LicensingModule
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
         address accessController,
         address ipAccountRegistry,
