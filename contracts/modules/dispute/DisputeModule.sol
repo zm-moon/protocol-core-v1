@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.23;
 
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import { DISPUTE_MODULE_KEY } from "../../lib/modules/Module.sol";
 import { BaseModule } from "../../modules/BaseModule.sol";
-import { Governable } from "../../governance/Governable.sol";
+import { GovernableUpgradeable } from "../../governance/GovernableUpgradeable.sol";
 import { AccessControlled } from "../../access/AccessControlled.sol";
 import { IIPAssetRegistry } from "../../interfaces/registries/IIPAssetRegistry.sol";
 import { IDisputeModule } from "../../interfaces/modules/dispute/IDisputeModule.sol";
@@ -17,8 +18,33 @@ import { ShortStringOps } from "../../utils/ShortStringOps.sol";
 /// @title Dispute Module
 /// @notice The dispute module acts as an enforcement layer for IP assets that allows raising and resolving disputes
 /// through arbitration by judges.
-contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuard, AccessControlled {
+contract DisputeModule is IDisputeModule, BaseModule, GovernableUpgradeable, ReentrancyGuardUpgradeable, AccessControlled, UUPSUpgradeable {
     using EnumerableSet for EnumerableSet.Bytes32Set;
+
+    /// @dev Storage for DisputeModule
+    /// @param disputeCounter The dispute ID counter
+    /// @param baseArbitrationPolicy The address of the base arbitration policy
+    /// @param disputes Returns the dispute information for a given dispute id
+    /// @param isWhitelistedDisputeTag Indicates if a dispute tag is whitelisted
+    /// @param isWhitelistedArbitrationPolicy Indicates if an arbitration policy is whitelisted
+    /// @param isWhitelistedArbitrationRelayer Indicates if an arbitration relayer
+    /// is whitelisted for a given arbitration policy
+    /// @param arbitrationPolicies Arbitration policy for a given ipId
+    /// @param successfulDisputesPerIp Counter of successful disputes per ipId
+    /// @custom:storage-location erc7201:story-protocol.DisputeModule
+    struct DisputeModuleStorage {
+        uint256 disputeCounter;
+        address baseArbitrationPolicy;
+        mapping(uint256 => Dispute) disputes;
+        mapping(bytes32 => bool) isWhitelistedDisputeTag;
+        mapping(address => bool) isWhitelistedArbitrationPolicy;
+        mapping(address => mapping(address => bool)) isWhitelistedArbitrationRelayer;
+        mapping(address => address) arbitrationPolicies;
+        mapping(address => uint256) successfulDisputesPerIp;
+    }
+
+    // keccak256(abi.encode(uint256(keccak256("story-protocol.DisputeModule")) - 1)) & ~bytes32(uint256(0xff));
+    bytes32 private constant DisputeModuleStorageLocation = 0x682945c2d364b4630e68ffe0854d372acb0c4ff549a1e3dbc6f878bd8da0c800;
 
     string public constant override name = DISPUTE_MODULE_KEY;
 
@@ -26,41 +52,27 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
     bytes32 public constant IN_DISPUTE = bytes32("IN_DISPUTE");
 
     /// @notice Protocol-wide IP asset registry
-    IIPAssetRegistry public IP_ASSET_REGISTRY;
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+    IIPAssetRegistry public immutable IP_ASSET_REGISTRY;
 
-    /// @notice Dispute ID counter
-    uint256 public disputeCounter;
-
-    /// @notice The address of the base arbitration policy
-    address public baseArbitrationPolicy;
-
-    /// @notice Returns the dispute information for a given dispute id
-    mapping(uint256 disputeId => Dispute dispute) public disputes;
-
-    /// @notice Indicates if a dispute tag is whitelisted
-    mapping(bytes32 tag => bool allowed) public isWhitelistedDisputeTag;
-
-    /// @notice Indicates if an arbitration policy is whitelisted
-    mapping(address arbitrationPolicy => bool allowed) public isWhitelistedArbitrationPolicy;
-
-    /// @notice Indicates if an arbitration relayer is whitelisted for a given arbitration policy
-    mapping(address arbitrationPolicy => mapping(address arbitrationRelayer => bool allowed))
-        public isWhitelistedArbitrationRelayer;
-
-    /// @notice Arbitration policy for a given ipId
-    mapping(address ipId => address arbitrationPolicy) public arbitrationPolicies;
-
-    /// @dev Counter of successful disputes per ipId
-    /// @dev BETA feature, for mainnet tag semantics must influence effect in other modules. For now
-    /// any successful dispute will affect the IP protocol wide
-    mapping(address ipId => uint256) private successfulDisputesPerIp;
-
+    /// Constructor
+    /// @param _controller The address of the access controller
+    /// @param _assetRegistry The address of the asset registry
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
         address _controller,
-        address _assetRegistry,
-        address _governance
-    ) Governable(_governance) AccessControlled(_controller, _assetRegistry) {
+        address _assetRegistry
+    ) AccessControlled(_controller, _assetRegistry) {
         IP_ASSET_REGISTRY = IIPAssetRegistry(_assetRegistry);
+        _disableInitializers();
+    }
+
+    /// @notice Initializes the DisputeModule
+    /// @param _governance The address of the governance contract
+    function initialize(address _governance) external initializer {
+        __GovernableUpgradeable_init(_governance);
+        __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
     }
 
     /// @notice Whitelists a dispute tag
@@ -69,7 +81,8 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
     function whitelistDisputeTag(bytes32 tag, bool allowed) external onlyProtocolAdmin {
         if (tag == bytes32(0)) revert Errors.DisputeModule__ZeroDisputeTag();
 
-        isWhitelistedDisputeTag[tag] = allowed;
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        $.isWhitelistedDisputeTag[tag] = allowed;
 
         emit TagWhitelistUpdated(tag, allowed);
     }
@@ -80,7 +93,8 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
     function whitelistArbitrationPolicy(address arbitrationPolicy, bool allowed) external onlyProtocolAdmin {
         if (arbitrationPolicy == address(0)) revert Errors.DisputeModule__ZeroArbitrationPolicy();
 
-        isWhitelistedArbitrationPolicy[arbitrationPolicy] = allowed;
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        $.isWhitelistedArbitrationPolicy[arbitrationPolicy] = allowed;
 
         emit ArbitrationPolicyWhitelistUpdated(arbitrationPolicy, allowed);
     }
@@ -97,7 +111,8 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
         if (arbitrationPolicy == address(0)) revert Errors.DisputeModule__ZeroArbitrationPolicy();
         if (arbPolicyRelayer == address(0)) revert Errors.DisputeModule__ZeroArbitrationRelayer();
 
-        isWhitelistedArbitrationRelayer[arbitrationPolicy][arbPolicyRelayer] = allowed;
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        $.isWhitelistedArbitrationRelayer[arbitrationPolicy][arbPolicyRelayer] = allowed;
 
         emit ArbitrationRelayerWhitelistUpdated(arbitrationPolicy, arbPolicyRelayer, allowed);
     }
@@ -105,10 +120,11 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
     /// @notice Sets the base arbitration policy
     /// @param arbitrationPolicy The address of the arbitration policy
     function setBaseArbitrationPolicy(address arbitrationPolicy) external onlyProtocolAdmin {
-        if (!isWhitelistedArbitrationPolicy[arbitrationPolicy])
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        if (!$.isWhitelistedArbitrationPolicy[arbitrationPolicy])
             revert Errors.DisputeModule__NotWhitelistedArbitrationPolicy();
 
-        baseArbitrationPolicy = arbitrationPolicy;
+        $.baseArbitrationPolicy = arbitrationPolicy;
 
         emit DefaultArbitrationPolicyUpdated(arbitrationPolicy);
     }
@@ -117,10 +133,11 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
     /// @param ipId The ipId
     /// @param arbitrationPolicy The address of the arbitration policy
     function setArbitrationPolicy(address ipId, address arbitrationPolicy) external verifyPermission(ipId) {
-        if (!isWhitelistedArbitrationPolicy[arbitrationPolicy])
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        if (!$.isWhitelistedArbitrationPolicy[arbitrationPolicy])
             revert Errors.DisputeModule__NotWhitelistedArbitrationPolicy();
 
-        arbitrationPolicies[ipId] = arbitrationPolicy;
+        $.arbitrationPolicies[ipId] = arbitrationPolicy;
 
         emit ArbitrationPolicySet(ipId, arbitrationPolicy);
     }
@@ -138,17 +155,18 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
         bytes calldata data
     ) external nonReentrant returns (uint256) {
         if (!IP_ASSET_REGISTRY.isRegistered(targetIpId)) revert Errors.DisputeModule__NotRegisteredIpId();
-        if (!isWhitelistedDisputeTag[targetTag]) revert Errors.DisputeModule__NotWhitelistedDisputeTag();
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        if (!$.isWhitelistedDisputeTag[targetTag]) revert Errors.DisputeModule__NotWhitelistedDisputeTag();
 
         bytes32 linkToDisputeEvidenceBytes = ShortStringOps.stringToBytes32(linkToDisputeEvidence);
         if (linkToDisputeEvidenceBytes == bytes32(0)) revert Errors.DisputeModule__ZeroLinkToDisputeEvidence();
 
-        address arbitrationPolicy = arbitrationPolicies[targetIpId];
-        if (!isWhitelistedArbitrationPolicy[arbitrationPolicy]) arbitrationPolicy = baseArbitrationPolicy;
+        address arbitrationPolicy = $.arbitrationPolicies[targetIpId];
+        if (!$.isWhitelistedArbitrationPolicy[arbitrationPolicy]) arbitrationPolicy = $.baseArbitrationPolicy;
 
-        uint256 disputeId_ = ++disputeCounter;
+        uint256 disputeId_ = ++$.disputeCounter;
 
-        disputes[disputeId_] = Dispute({
+        $.disputes[disputeId_] = Dispute({
             targetIpId: targetIpId,
             disputeInitiator: msg.sender,
             arbitrationPolicy: arbitrationPolicy,
@@ -177,18 +195,20 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
     /// @param decision The decision of the dispute
     /// @param data The data to set the dispute judgement
     function setDisputeJudgement(uint256 disputeId, bool decision, bytes calldata data) external nonReentrant {
-        Dispute memory dispute = disputes[disputeId];
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+
+        Dispute memory dispute = $.disputes[disputeId];
 
         if (dispute.currentTag != IN_DISPUTE) revert Errors.DisputeModule__NotInDisputeState();
-        if (!isWhitelistedArbitrationRelayer[dispute.arbitrationPolicy][msg.sender]) {
+        if (!$.isWhitelistedArbitrationRelayer[dispute.arbitrationPolicy][msg.sender]) {
             revert Errors.DisputeModule__NotWhitelistedArbitrationRelayer();
         }
 
         if (decision) {
-            disputes[disputeId].currentTag = dispute.targetTag;
-            successfulDisputesPerIp[dispute.targetIpId]++;
+            $.disputes[disputeId].currentTag = dispute.targetTag;
+            $.successfulDisputesPerIp[dispute.targetIpId]++;
         } else {
-            disputes[disputeId].currentTag = bytes32(0);
+            $.disputes[disputeId].currentTag = bytes32(0);
         }
 
         IArbitrationPolicy(dispute.arbitrationPolicy).onDisputeJudgement(disputeId, decision, data);
@@ -200,14 +220,15 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
     /// @param disputeId The dispute id
     /// @param data The data to cancel the dispute
     function cancelDispute(uint256 disputeId, bytes calldata data) external nonReentrant {
-        Dispute memory dispute = disputes[disputeId];
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        Dispute memory dispute = $.disputes[disputeId];
 
         if (dispute.currentTag != IN_DISPUTE) revert Errors.DisputeModule__NotInDisputeState();
         if (msg.sender != dispute.disputeInitiator) revert Errors.DisputeModule__NotDisputeInitiator();
 
         IArbitrationPolicy(dispute.arbitrationPolicy).onDisputeCancel(msg.sender, disputeId, data);
 
-        disputes[disputeId].currentTag = bytes32(0);
+        $.disputes[disputeId].currentTag = bytes32(0);
 
         emit DisputeCancelled(disputeId, data);
     }
@@ -215,14 +236,15 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
     /// @notice Resolves a dispute after it has been judged
     /// @param disputeId The dispute id
     function resolveDispute(uint256 disputeId) external {
-        Dispute memory dispute = disputes[disputeId];
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        Dispute memory dispute = $.disputes[disputeId];
 
         if (msg.sender != dispute.disputeInitiator) revert Errors.DisputeModule__NotDisputeInitiator();
         if (dispute.currentTag == IN_DISPUTE || dispute.currentTag == bytes32(0))
             revert Errors.DisputeModule__NotAbleToResolve();
 
-        successfulDisputesPerIp[dispute.targetIpId]--;
-        disputes[disputeId].currentTag = bytes32(0);
+        $.successfulDisputesPerIp[dispute.targetIpId]--;
+        $.disputes[disputeId].currentTag = bytes32(0);
 
         emit DisputeResolved(disputeId);
     }
@@ -231,6 +253,99 @@ contract DisputeModule is IDisputeModule, BaseModule, Governable, ReentrancyGuar
     /// @param ipId The ipId
     /// @return isTagged True if the ipId is tagged
     function isIpTagged(address ipId) external view returns (bool) {
-        return successfulDisputesPerIp[ipId] > 0;
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        return $.successfulDisputesPerIp[ipId] > 0;
     }
+
+    /// @notice Dispute ID counter
+    function disputeCounter() external view returns (uint256) {
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        return $.disputeCounter;
+    }
+
+    /// @notice The address of the base arbitration policy
+    function baseArbitrationPolicy() external view returns (address) {
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        return $.baseArbitrationPolicy;
+    }
+
+    /// @notice Returns the dispute information for a given dispute id
+    /// @param disputeId The dispute id
+    /// @return targetIpId The ipId that is the target of the dispute
+    /// @return disputeInitiator The address of the dispute initiator
+    /// @return arbitrationPolicy The address of the arbitration policy
+    /// @return linkToDisputeEvidence The link of the dispute summary
+    /// @return targetTag The target tag of the dispute
+    /// @return currentTag The current tag of the dispute
+    function disputes(
+        uint256 disputeId
+    )
+        external
+        view
+        returns (
+            address targetIpId,
+            address disputeInitiator,
+            address arbitrationPolicy,
+            bytes32 linkToDisputeEvidence,
+            bytes32 targetTag,
+            bytes32 currentTag
+        ) {
+            DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+            return (
+                $.disputes[disputeId].targetIpId,
+                $.disputes[disputeId].disputeInitiator,
+                $.disputes[disputeId].arbitrationPolicy,
+                $.disputes[disputeId].linkToDisputeEvidence,
+                $.disputes[disputeId].targetTag,
+                $.disputes[disputeId].currentTag
+            );
+        }
+
+    /// @notice Indicates if a dispute tag is whitelisted
+    /// @param tag The dispute tag
+    /// @return allowed Indicates if the dispute tag is whitelisted
+    function isWhitelistedDisputeTag(bytes32 tag) external view returns (bool allowed) {
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        return $.isWhitelistedDisputeTag[tag];
+    }
+
+    /// @notice Indicates if an arbitration policy is whitelisted
+    /// @param arbitrationPolicy The address of the arbitration policy
+    /// @return allowed Indicates if the arbitration policy is whitelisted
+    function isWhitelistedArbitrationPolicy(address arbitrationPolicy) external view returns (bool allowed) {
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        return $.isWhitelistedArbitrationPolicy[arbitrationPolicy];
+    }
+
+    /// @notice Indicates if an arbitration relayer is whitelisted for a given arbitration policy
+    /// @param arbitrationPolicy The address of the arbitration policy
+    /// @param arbitrationRelayer The address of the arbitration relayer
+    /// @return allowed Indicates if the arbitration relayer is whitelisted
+    function isWhitelistedArbitrationRelayer(
+        address arbitrationPolicy,
+        address arbitrationRelayer
+    ) external view returns (bool allowed) {
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        return $.isWhitelistedArbitrationRelayer[arbitrationPolicy][arbitrationRelayer];
+    }
+
+    /// @notice Arbitration policy for a given ipId
+    /// @param ipId The ipId
+    /// @return policy The address of the arbitration policy
+    function arbitrationPolicies(address ipId) external view returns (address policy) {
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        return $.arbitrationPolicies[ipId];
+    }
+
+    /// @dev Hook to authorize the upgrade according to UUPSUgradeable
+    /// @param newImplementation The address of the new implementation
+    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
+
+    /// @dev Returns the storage struct of DisputeModule.
+    function _getDisputeModuleStorage() private pure returns (DisputeModuleStorage storage $) {
+        assembly {
+            $.slot := DisputeModuleStorageLocation
+        }
+    }
+    
 }

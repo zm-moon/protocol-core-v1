@@ -299,7 +299,22 @@ contract DeployHelper {
         }
         if (d.disputeModule) {
             require(address(ipAssetRegistry) != address(0), "DeployHelper Module: IPAssetRegistry required");
-            disputeModule = new DisputeModule(getAccessController(), address(ipAssetRegistry), getGovernance());
+            address impl = address(
+                new DisputeModule(
+                    address(accessController),
+                    address(ipAssetRegistry)
+                )
+            );
+            disputeModule = DisputeModule(
+                TestProxyHelper.deployUUPSProxy(
+                    impl,
+                    abi.encodeCall(
+                        DisputeModule.initialize, (
+                            address(governance)
+                        )
+                    )
+                )
+            );
             console2.log("DeployHelper: Using REAL DisputeModule");
             postDeployConditions.disputeModule_configure = true;
         }

@@ -140,8 +140,9 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
             LIQUID_SPLIT_FACTORY != address(0) && LIQUID_SPLIT_MAIN != address(0),
             "DeployMain: Liquid Split Addresses Not Set"
         );
-
+        
         string memory contractKey;
+        Options memory opts;
 
         // Mock Assets (deploy first)
 
@@ -220,7 +221,22 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
         contractKey = "DisputeModule";
         _predeploy(contractKey);
-        disputeModule = new DisputeModule(address(accessController), address(ipAssetRegistry), address(governance));
+
+        opts.constructorData = abi.encode(
+            address(accessController),
+            address(ipAssetRegistry)
+        );
+        disputeModule = DisputeModule(
+            Upgrades.deployUUPSProxy(
+                "DisputeModule.sol",
+                abi.encodeCall(
+                    DisputeModule.initialize, (
+                        address(governance)
+                    )
+                ),
+                opts
+            )
+        );
         _postdeploy(contractKey, address(disputeModule));
 
         contractKey = "LicenseRegistry";
