@@ -4,10 +4,12 @@ pragma solidity 0.8.23;
 import { AccessControlled } from "../../../access/AccessControlled.sol";
 import { ILicenseRegistry } from "../../../interfaces/registries/ILicenseRegistry.sol";
 
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
 /// @title LicensorApprovalChecker
 /// @notice Manages the approval of derivative IP accounts by the licensor. Used to verify
 /// licensing terms like "Derivatives With Approval" in PIL.
-abstract contract LicensorApprovalChecker is AccessControlled {
+abstract contract LicensorApprovalChecker is AccessControlled, Initializable {
     /// @notice Emits when a derivative IP account is approved by the licensor.
     /// @param licenseId The ID of the license waiting for approval
     /// @param ipId The ID of the derivative IP to be approved
@@ -28,8 +30,7 @@ abstract contract LicensorApprovalChecker is AccessControlled {
     ILicenseRegistry public immutable LICENSE_REGISTRY;
 
     // keccak256(abi.encode(uint256(keccak256("story-protocol.LicensorApprovalChecker")) - 1)) & ~bytes32(uint256(0xff));
-    // WARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNINGWARNING: NOT TRUE UPDATE
-    bytes32 private constant LicensorApprovalCheckerStorageLocation = 0xaed547d8331715caab0800583ca79170ef3186de64f009413517d98c5b905c00;
+    bytes32 private constant LicensorApprovalCheckerStorageLocation = 0x7a71306cccadc52d66a0a466930bd537acf0ba900f21654919d58cece4cf9500;
 
     /// @notice Constructor function
     /// @param accessController The address of the AccessController contract
@@ -80,6 +81,7 @@ abstract contract LicensorApprovalChecker is AccessControlled {
         emit DerivativeApproved(licenseId, licensorIpId, msg.sender, approved);
     }
 
+    /// @dev Returns the storage struct of LicensorApprovalChecker.
     function _getLicensorApprovalCheckerStorage() private pure returns (LicensorApprovalCheckerStorage storage $) {
         assembly {
             $.slot := LicensorApprovalCheckerStorageLocation

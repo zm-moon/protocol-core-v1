@@ -3,7 +3,6 @@ pragma solidity 0.8.23;
 
 import { ERC165Checker } from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
-import { Initializable } from  "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { IModuleRegistry } from "../interfaces/registries/IModuleRegistry.sol";
