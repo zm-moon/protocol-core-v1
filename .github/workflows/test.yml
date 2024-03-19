@@ -45,6 +45,7 @@ jobs:
       - name: Run Contract Size check
         run: |
           forge --version
+          forge install OpenZeppelin/openzeppelin-foundry-upgrades
           forge build --force --sizes --skip test --skip script
       
       # This step requires full build to be run first
