@@ -45,6 +45,8 @@ abstract contract GovernableUpgradeable is IGovernable, Initializable {
         _disableInitializers();
     }
 
+    /// @notice initializer for this implementation contract
+    /// @param governance_ The address of the governance.
     function __GovernableUpgradeable_init(address governance_) internal onlyInitializing {
         if (governance_ == address(0)) revert Errors.Governance__ZeroAddress();
         _getGovernableUpgradeableStorage().governance = governance_;

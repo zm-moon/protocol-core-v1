@@ -65,6 +65,9 @@ contract LicenseRegistry is ILicenseRegistry, ERC1155Upgradeable, GovernableUpgr
         _disableInitializers();
     }
 
+    /// @notice initializer for this implementation contract
+    /// @param governance The address of the governance contract
+    /// @param imageUrl The URL of the Licensing Image
     function initialize(address governance, string memory imageUrl) public initializer {
         __ERC1155_init("");
         __GovernableUpgradeable_init(governance);

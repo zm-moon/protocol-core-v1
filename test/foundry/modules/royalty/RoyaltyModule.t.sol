@@ -47,12 +47,23 @@ contract TestRoyaltyModule is BaseTest {
 
         USDC.mint(ipAccount2, 1000 * 10 ** 6); // 1000 USDC
 
-        royaltyPolicyLAP2 = new RoyaltyPolicyLAP(
-            getRoyaltyModule(),
-            getLicensingModule(),
-            LIQUID_SPLIT_FACTORY,
-            LIQUID_SPLIT_MAIN,
-            getGovernance()
+        address impl = address(
+            new RoyaltyPolicyLAP(
+                getRoyaltyModule(),
+                getLicensingModule(),
+                LIQUID_SPLIT_FACTORY,
+                LIQUID_SPLIT_MAIN
+            )
+        );
+        royaltyPolicyLAP2 = RoyaltyPolicyLAP(
+            TestProxyHelper.deployUUPSProxy(
+                impl,
+                abi.encodeCall(
+                    RoyaltyPolicyLAP.initialize, (
+                        getGovernance()
+                    )
+                )
+            )
         );
 
         vm.startPrank(u.admin);

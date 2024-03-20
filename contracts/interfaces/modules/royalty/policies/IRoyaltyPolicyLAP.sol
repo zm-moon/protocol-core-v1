@@ -46,7 +46,7 @@ interface IRoyaltyPolicyLAP is IRoyaltyPolicy {
     function LIQUID_SPLIT_MAIN() external view returns (address);
 
     /// @notice Returns the Ancestors Vault Implementation address
-    function ANCESTORS_VAULT_IMPL() external view returns (address);
+    function ancestorsVaultImpl() external view returns (address);
 
     /// @notice Distributes funds internally so that accounts holding the royalty nfts at distribution moment can
     /// claim afterwards

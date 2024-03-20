@@ -50,7 +50,7 @@ contract ArbitrationPolicySP is IArbitrationPolicy, GovernableUpgradeable, UUPSU
         ARBITRATION_PRICE = _arbitrationPrice;
     }
 
-    /// @notice Initializes the contract
+    /// @notice initializer for this implementation contract
     /// @param governance The address of the governance contract
     function initialize(address governance) public initializer {
         __GovernableUpgradeable_init(governance);

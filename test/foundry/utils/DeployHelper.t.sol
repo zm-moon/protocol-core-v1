@@ -5,7 +5,6 @@ pragma solidity 0.8.23;
 // external
 import { console2 } from "forge-std/console2.sol"; // console to indicate mock deployment calls.
 import { ERC6551Registry } from "erc6551/ERC6551Registry.sol";
-import { TestProxyHelper } from "./TestProxyHelper.sol";
 
 // contracts
 import { AccessController } from "../../../contracts/AccessController.sol";
@@ -378,12 +377,23 @@ contract DeployHelper {
             console2.log("DeployHelper: Using Mock ArbitrationPolicySP");
         }
         if (d.royaltyPolicyLAP) {
-            royaltyPolicyLAP = new RoyaltyPolicyLAP(
-                getRoyaltyModule(),
-                getLicensingModule(),
-                LIQUID_SPLIT_FACTORY,
-                LIQUID_SPLIT_MAIN,
-                getGovernance()
+            address impl = address(
+                new RoyaltyPolicyLAP(
+                    getRoyaltyModule(),
+                    getLicensingModule(),
+                    LIQUID_SPLIT_FACTORY,
+                    LIQUID_SPLIT_MAIN
+                )
+            );
+            royaltyPolicyLAP = RoyaltyPolicyLAP(
+                TestProxyHelper.deployUUPSProxy(
+                    impl,
+                    abi.encodeCall(
+                        RoyaltyPolicyLAP.initialize, (
+                            getGovernance()
+                        )
+                    )
+                )
             );
             console2.log("DeployHelper: Using REAL RoyaltyPolicyLAP");
 

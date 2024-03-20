@@ -67,7 +67,7 @@ contract DisputeModule is IDisputeModule, BaseModule, GovernableUpgradeable, Ree
         _disableInitializers();
     }
 
-    /// @notice Initializes the DisputeModule
+    /// @notice initializer for this implementation contract
     /// @param _governance The address of the governance contract
     function initialize(address _governance) external initializer {
         __GovernableUpgradeable_init(_governance);

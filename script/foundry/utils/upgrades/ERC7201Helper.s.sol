@@ -10,14 +10,16 @@ import { console2 } from "forge-std/console2.sol";
 /// Thanks Mikhail Vladimirov for bytes32 to hex string conversion functions.
 /// https://stackoverflow.com/questions/67893318/solidity-how-to-represent-bytes32-as-string
 contract ERC7201HelperScript is Script {
+    
     string constant NAMESPACE = "story-protocol";
-    string constant CONTRACT_NAME = "RoyaltyModule";
+    string constant CONTRACT_NAME = "RoyaltyPolicyLAP";
 
     function run() external {
         bytes memory erc7201Key = abi.encodePacked(NAMESPACE, ".", CONTRACT_NAME);
         bytes32 hash = keccak256(abi.encode(uint256(keccak256(erc7201Key)) - 1)) & ~bytes32(uint256(0xff));
 
-        // Log natspec and storage struct
+        // Log natspec and storage structure
+        console2.log(string(abi.encodePacked("/// @dev Storage structure for the ", CONTRACT_NAME)));
         console2.log(string(abi.encodePacked("/// @custom:storage-location erc7201:", erc7201Key)));
         console2.log(string(abi.encodePacked("struct ", CONTRACT_NAME, "Storage {")));
         console2.log("    // Write storage variables here...");

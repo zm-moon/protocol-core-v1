@@ -20,7 +20,7 @@ import { BaseModule } from "../BaseModule.sol";
 contract RoyaltyModule is IRoyaltyModule, GovernableUpgradeable, ReentrancyGuardUpgradeable, BaseModule, UUPSUpgradeable {
     using ERC165Checker for address;
 
-    /// @dev Storage structure of the RoyaltyModule
+    /// @dev Storage structure for the RoyaltyModule
     /// @param licensingModule The address of the licensing module
     /// @param isWhitelistedRoyaltyPolicy Indicates if a royalty policy is whitelisted
     /// @param isWhitelistedRoyaltyToken Indicates if a royalty token is whitelisted
@@ -44,6 +44,8 @@ contract RoyaltyModule is IRoyaltyModule, GovernableUpgradeable, ReentrancyGuard
         _disableInitializers();
     }
 
+    /// @notice initializer for this implementation contract
+    /// @param _governance The address of the governance contract
     function initialize(address _governance) external initializer {
         __GovernableUpgradeable_init(_governance);
         __ReentrancyGuard_init();

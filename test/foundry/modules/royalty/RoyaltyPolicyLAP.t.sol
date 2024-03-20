@@ -8,6 +8,7 @@ import { RoyaltyPolicyLAP } from "../../../../contracts/modules/royalty/policies
 import { ILiquidSplitMain } from "../../../../contracts/interfaces/modules/royalty/policies/ILiquidSplitMain.sol";
 import { Errors } from "../../../../contracts/lib/Errors.sol";
 
+import { TestProxyHelper } from "test/foundry/utils/TestProxyHelper.sol";
 import { BaseTest } from "../../utils/BaseTest.t.sol";
 
 contract TestRoyaltyPolicyLAP is BaseTest {
@@ -177,18 +178,29 @@ contract TestRoyaltyPolicyLAP is BaseTest {
     }
 
     function test_RoyaltyPolicyLAP_setAncestorsVaultImplementation() public {
-        RoyaltyPolicyLAP royaltyPolicyLAP2 = new RoyaltyPolicyLAP(
-            address(1),
-            address(2),
-            address(3),
-            address(4),
-            address(governance)
+        address impl = address(
+            new RoyaltyPolicyLAP(
+                address(1),
+                address(2),
+                address(3),
+                address(4)
+            )
+        );
+        RoyaltyPolicyLAP royaltyPolicyLAP2 = RoyaltyPolicyLAP(
+            TestProxyHelper.deployUUPSProxy(
+                impl,
+                abi.encodeCall(
+                    RoyaltyPolicyLAP.initialize, (
+                        getGovernance()
+                    )
+                )
+            )
         );
 
         vm.startPrank(u.admin);
         royaltyPolicyLAP2.setAncestorsVaultImplementation(address(2));
 
-        assertEq(royaltyPolicyLAP2.ANCESTORS_VAULT_IMPL(), address(2));
+        assertEq(royaltyPolicyLAP2.ancestorsVaultImpl(), address(2));
     }
 
     function test_RoyaltyPolicyLAP_onLicenseMinting_revert_NotRoyaltyModule() public {

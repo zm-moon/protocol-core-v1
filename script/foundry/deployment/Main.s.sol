@@ -325,12 +325,22 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
         contractKey = "RoyaltyPolicyLAP";
         _predeploy(contractKey);
-        royaltyPolicyLAP = new RoyaltyPolicyLAP(
+        opts.constructorData = abi.encode(
             address(royaltyModule),
             address(licensingModule),
             LIQUID_SPLIT_FACTORY,
-            LIQUID_SPLIT_MAIN,
-            address(governance)
+            LIQUID_SPLIT_MAIN
+        );
+        royaltyPolicyLAP = RoyaltyPolicyLAP(
+            Upgrades.deployUUPSProxy(
+                "RoyaltyPolicyLAP.sol",
+                abi.encodeCall(
+                    RoyaltyPolicyLAP.initialize, (
+                        address(governance)
+                    )
+                ),
+                opts
+            )
         );
         _postdeploy(contractKey, address(royaltyPolicyLAP));
 
