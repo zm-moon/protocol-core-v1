@@ -69,6 +69,7 @@ contract RoyaltyPolicyLAP is
     uint256 public constant MAX_ANCESTORS = 14;
 
     /// @notice Returns the RoyaltyModule address
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable ROYALTY_MODULE;
 
     /// @notice Returns the LicensingModule address
