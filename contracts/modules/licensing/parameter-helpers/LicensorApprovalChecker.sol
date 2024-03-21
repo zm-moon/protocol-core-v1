@@ -29,7 +29,8 @@ abstract contract LicensorApprovalChecker is AccessControlled, Initializable {
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     ILicenseRegistry public immutable LICENSE_REGISTRY;
 
-    // keccak256(abi.encode(uint256(keccak256("story-protocol.LicensorApprovalChecker")) - 1)) & ~bytes32(uint256(0xff));
+    // keccak256(abi.encode(uint256(keccak256("story-protocol.LicensorApprovalChecker")) - 1))
+    // & ~bytes32(uint256(0xff));
     bytes32 private constant LicensorApprovalCheckerStorageLocation =
         0x7a71306cccadc52d66a0a466930bd537acf0ba900f21654919d58cece4cf9500;
 
