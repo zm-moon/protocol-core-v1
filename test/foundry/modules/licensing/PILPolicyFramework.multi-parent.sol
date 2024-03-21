@@ -9,7 +9,6 @@ import { Licensing } from "contracts/lib/Licensing.sol";
 import { PILFrameworkErrors } from "contracts/lib/PILFrameworkErrors.sol";
 // solhint-disable-next-line max-line-length
 import { RegisterPILPolicyParams } from "contracts/interfaces/modules/licensing/IPILPolicyFrameworkManager.sol";
-import { PILPolicyFrameworkManager } from "contracts/modules/licensing/PILPolicyFrameworkManager.sol";
 
 import { BaseTest } from "test/foundry/utils/BaseTest.t.sol";
 

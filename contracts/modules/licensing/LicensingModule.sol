@@ -34,7 +34,14 @@ import { GovernableUpgradeable } from "../../governance/GovernableUpgradeable.so
 /// - Linking IP to its parent
 /// - Verifying linking parameters
 /// - Verifying policy parameters
-contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, ReentrancyGuardUpgradeable, GovernableUpgradeable, UUPSUpgradeable {
+contract LicensingModule is
+    AccessControlled,
+    ILicensingModule,
+    BaseModule,
+    ReentrancyGuardUpgradeable,
+    GovernableUpgradeable,
+    UUPSUpgradeable
+{
     using ERC165Checker for address;
     using IPAccountChecker for IIPAccountRegistry;
     using EnumerableSet for EnumerableSet.UintSet;
@@ -47,7 +54,8 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
     /// @param hashedPolicies Mapping of policy data to policy id
     /// @param policies Mapping of policy id to policy data (hashed)
     /// @param totalPolicies Total amount of distinct licensing policies in LicenseRegistry
-    /// @param policySetups Internal mapping to track if a policy was set by linking or minting, and the index of the policy in the
+    /// @param policySetups Internal mapping to track if a policy was set by linking or minting,
+    /// and the index of the policy in the
     /// ipId policy set. Policies can't be removed, but they can be deactivated by setting active to false.
     /// @param policiesPerIpId the set of policy ids attached to the given ipId
     /// @param ipIdParents Mapping of parent policy ids for the given ipId
@@ -80,7 +88,8 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
     IDisputeModule public immutable DISPUTE_MODULE;
 
     // keccak256(abi.encode(uint256(keccak256("story-protocol.LicensingModule")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 private constant LicensingModuleStorageLocation = 0x0f7178cb62e4803c52d40f70c08a6f88d6ee1af1838d58e0c83a222a6c3d3100;
+    bytes32 private constant LicensingModuleStorageLocation =
+        0x0f7178cb62e4803c52d40f70c08a6f88d6ee1af1838d58e0c83a222a6c3d3100;
 
     /// @notice Modifier to allow only LicenseRegistry as the caller
     modifier onlyLicenseRegistry() {
@@ -616,10 +625,5 @@ contract LicensingModule is AccessControlled, ILicensingModule, BaseModule, Reen
 
     /// @dev Hook to authorize the upgrade according to UUPSUgradeable
     /// @param newImplementation The address of the new implementation
-    function _authorizeUpgrade(address newImplementation)
-        internal
-        onlyProtocolAdmin
-        override
-    {}
-
+    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
 }

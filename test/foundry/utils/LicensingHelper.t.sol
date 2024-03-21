@@ -9,13 +9,10 @@ import { IIPAccountRegistry } from "../../../contracts/interfaces/registries/IIP
 import { ILicensingModule } from "../../../contracts/interfaces/modules/licensing/ILicensingModule.sol";
 import { IRoyaltyModule } from "../../../contracts/interfaces/modules/royalty/IRoyaltyModule.sol";
 import { IRoyaltyPolicyLAP } from "../../../contracts/interfaces/modules/royalty/policies/IRoyaltyPolicyLAP.sol";
-import { BasePolicyFrameworkManager } from "../../../contracts/modules/licensing/BasePolicyFrameworkManager.sol";
 // solhint-disable-next-line max-line-length
 import { PILPolicyFrameworkManager, PILPolicy, RegisterPILPolicyParams } from "../../../contracts/modules/licensing/PILPolicyFrameworkManager.sol";
 import { TestProxyHelper } from "./TestProxyHelper.sol";
 // test
-// solhint-disable-next-line max-line-length
-import { MockPolicyFrameworkManager, MockPolicyFrameworkConfig } from "test/foundry/mocks/licensing/MockPolicyFrameworkManager.sol";
 
 contract LicensingHelper {
     IAccessController private ACCESS_CONTROLLER; // keep private to avoid collision with `BaseIntegration`
@@ -93,12 +90,7 @@ contract LicensingHelper {
         );
         pfm["pil"] = TestProxyHelper.deployUUPSProxy(
             address(impl),
-            abi.encodeCall(
-                PILPolicyFrameworkManager.initialize, (
-                    "PIL_MINT_PAYMENT",
-                    licenseUrl
-                )
-            )
+            abi.encodeCall(PILPolicyFrameworkManager.initialize, ("PIL_MINT_PAYMENT", licenseUrl))
         );
         return pfm["pil"];
     }

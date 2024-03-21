@@ -221,14 +221,7 @@ contract DeployHelper {
         if (d.accessController) {
             address impl = address(new AccessController());
             accessController = AccessController(
-                TestProxyHelper.deployUUPSProxy(
-                    impl,
-                    abi.encodeCall(
-                        AccessController.initialize, (
-                            getGovernance()
-                        )
-                    )
-                )
+                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(AccessController.initialize, (getGovernance())))
             );
 
             console2.log("DeployHelper: Using REAL AccessController");
@@ -247,14 +240,7 @@ contract DeployHelper {
         if (d.moduleRegistry) {
             address impl = address(new ModuleRegistry());
             moduleRegistry = ModuleRegistry(
-                TestProxyHelper.deployUUPSProxy(
-                    impl,
-                    abi.encodeCall(
-                        AccessController.initialize, (
-                            getGovernance()
-                        )
-                    )
-                )
+                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(AccessController.initialize, (getGovernance())))
             );
             console2.log("DeployHelper: Using REAL ModuleRegistry");
             postDeployConditions.moduleRegistry_registerModules = true;
@@ -317,14 +303,7 @@ contract DeployHelper {
                 )
             );
             licensingModule = LicensingModule(
-                TestProxyHelper.deployUUPSProxy(
-                    impl,
-                    abi.encodeCall(
-                        LicensingModule.initialize, (
-                            getGovernance()
-                        )
-                    )
-                )
+                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(LicensingModule.initialize, (getGovernance())))
             );
             console2.log("DeployHelper: Using REAL LicensingModule");
         }

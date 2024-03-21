@@ -15,7 +15,6 @@ import { Errors } from "../../lib/Errors.sol";
 /// the IPolicyFrameworkManager in the docs.
 /// @notice Base contract for policy framework managers.
 abstract contract BasePolicyFrameworkManager is IPolicyFrameworkManager, ERC165, Initializable {
-
     /// @dev Storage for BasePolicyFrameworkManager
     /// @param name The name of the policy framework manager
     /// @param licenseTextUrl The URL to the off chain legal agreement template text
@@ -25,9 +24,11 @@ abstract contract BasePolicyFrameworkManager is IPolicyFrameworkManager, ERC165,
         string licenseTextUrl;
     }
 
-    // keccak256(abi.encode(uint256(keccak256("story-protocol.BasePolicyFrameworkManager")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 private constant BasePolicyFrameworkManagerStorageLocation = 0xa55803740ac9329334ad7b6cde0ec056cc3ba32125b59c579552512bed001f00;
-    
+    // keccak256(abi.encode(uint256(keccak256("story-protocol.BasePolicyFrameworkManager")) - 1))
+    // & ~bytes32(uint256(0xff));
+    bytes32 private constant BasePolicyFrameworkManagerStorageLocation =
+        0xa55803740ac9329334ad7b6cde0ec056cc3ba32125b59c579552512bed001f00;
+
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     ILicensingModule public immutable LICENSING_MODULE;
 
@@ -49,7 +50,10 @@ abstract contract BasePolicyFrameworkManager is IPolicyFrameworkManager, ERC165,
     /// @notice Initializes the BasePolicyFrameworkManager contract as per the Initializable contract.
     /// @param _name The name of the policy framework manager
     /// @param _licenseTextUrl The URL to the off chain legal agreement template text
-    function __BasePolicyFrameworkManager_init(string memory _name, string memory _licenseTextUrl) internal onlyInitializing {
+    function __BasePolicyFrameworkManager_init(
+        string memory _name,
+        string memory _licenseTextUrl
+    ) internal onlyInitializing {
         _getBasePolicyFrameworkManagerStorage().name = _name;
         _getBasePolicyFrameworkManagerStorage().licenseTextUrl = _licenseTextUrl;
     }
@@ -69,7 +73,11 @@ abstract contract BasePolicyFrameworkManager is IPolicyFrameworkManager, ERC165,
         return interfaceId == type(IPolicyFrameworkManager).interfaceId || super.supportsInterface(interfaceId);
     }
 
-    function _getBasePolicyFrameworkManagerStorage() internal pure returns (BasePolicyFrameworkManagerStorage storage $) {
+    function _getBasePolicyFrameworkManagerStorage()
+        internal
+        pure
+        returns (BasePolicyFrameworkManagerStorage storage $)
+    {
         assembly {
             $.slot := BasePolicyFrameworkManagerStorageLocation
         }

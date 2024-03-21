@@ -52,10 +52,7 @@ contract PILPolicyFrameworkManager is
         )
     {}
 
-    function initialize(
-        string memory name,
-        string memory licenseTextUrl
-    ) external initializer {
+    function initialize(string memory name, string memory licenseTextUrl) external initializer {
         __BasePolicyFrameworkManager_init(name, licenseTextUrl);
         __ReentrancyGuard_init();
     }

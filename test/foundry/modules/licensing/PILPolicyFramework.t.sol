@@ -7,7 +7,6 @@ import { Errors } from "contracts/lib/Errors.sol";
 import { PILFrameworkErrors } from "contracts/lib/PILFrameworkErrors.sol";
 // solhint-disable-next-line max-line-length
 import { PILPolicy, RegisterPILPolicyParams } from "contracts/interfaces/modules/licensing/IPILPolicyFrameworkManager.sol";
-import { PILPolicyFrameworkManager } from "contracts/modules/licensing/PILPolicyFrameworkManager.sol";
 
 import { MockERC721 } from "test/foundry/mocks/token/MockERC721.sol";
 import { MockTokenGatedHook } from "test/foundry/mocks/MockTokenGatedHook.sol";

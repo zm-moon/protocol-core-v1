@@ -10,7 +10,6 @@ import { AccessPermission } from "contracts/lib/AccessPermission.sol";
 import { Errors } from "contracts/lib/Errors.sol";
 import { Licensing } from "contracts/lib/Licensing.sol";
 import { RegisterPILPolicyParams } from "contracts/interfaces/modules/licensing/IPILPolicyFrameworkManager.sol";
-import { PILPolicyFrameworkManager, PILPolicy } from "contracts/modules/licensing/PILPolicyFrameworkManager.sol";
 
 // test
 // solhint-disable-next-line max-line-length
