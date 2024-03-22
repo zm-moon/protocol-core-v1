@@ -186,37 +186,6 @@ contract RoyaltyPolicyLAP is
         return $.ancestorsVaultImpl;
     }
 
-    /// @notice Returns the royalty data for a given IP asset
-    /// @param ipId The ID of the IP asset
-    /// @return isUnlinkable Indicates if the ipId is unlinkable to new parents
-    /// @return splitClone The address of the liquid split clone contract for a given ipId
-    /// @return ancestorsVault The address of the ancestors vault contract for a given ipId
-    /// @return royaltyStack The royalty stack of a given ipId is the sum of the royalties to be paid to each ancestors
-    /// @return ancestorsHash The hash of the unique ancestors addresses and royalties arrays
-    function royaltyData(
-        address ipId
-    )
-        external
-        view
-        returns (
-            bool isUnlinkable,
-            address splitClone,
-            address ancestorsVault,
-            uint32 royaltyStack,
-            bytes32 ancestorsHash
-        )
-    {
-        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
-        LAPRoyaltyData memory data = $.royaltyData[ipId];
-        return (
-            data.isUnlinkableToParents,
-            data.splitClone,
-            data.ancestorsVault,
-            data.royaltyStack,
-            data.ancestorsHash
-        );
-    }
-
     /// @dev Initializes the royalty policy for a given IP asset.
     /// @dev Enforced to be only callable by RoyaltyModule
     /// @param ipId The to initialize the policy for
@@ -227,6 +196,7 @@ contract RoyaltyPolicyLAP is
         address[] memory parentIpIds,
         bytes[] memory licenseData
     ) internal onlyRoyaltyModule {
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
         // decode license data
         uint32[] memory parentRoyalties = new uint32[](parentIpIds.length);
         for (uint256 i = 0; i < parentIpIds.length; i++) {
@@ -343,7 +313,31 @@ contract RoyaltyPolicyLAP is
     /// @param claimerIpId The claimer ipId is the ancestor address that wants to claim
     /// @param tokens The ERC20 tokens to withdraw
     function claimFromAncestorsVault(address ipId, address claimerIpId, ERC20[] calldata tokens) external {
-        IAncestorsVaultLAP(royaltyData[ipId].ancestorsVault).claim(ipId, claimerIpId, tokens);
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+        IAncestorsVaultLAP($.royaltyData[ipId].ancestorsVault).claim(ipId, claimerIpId, tokens);
+    }
+
+    /// @notice Returns the royalty data for a given IP asset
+    /// @param ipId The ipId to get the royalty data for
+    /// @return isUnlinkableToParents Indicates if the ipId is unlinkable to new parents
+    /// @return splitClone The address of the liquid split clone contract for a given ipId
+    /// @return ancestorsVault The address of the ancestors vault contract for a given ipId
+    /// @return royaltyStack The royalty stack of a given ipId is the sum of the royalties to be paid to each ancestors
+    /// @return ancestorsAddresses The ancestors addresses array
+    /// @return ancestorsRoyalties The ancestors royalties array
+    function getRoyaltyData(
+        address ipId
+    ) external view returns (bool, address, address, uint32, address[] memory, uint32[] memory) {
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+        LAPRoyaltyData memory data = $.royaltyData[ipId];
+        return (
+            data.isUnlinkableToParents,
+            data.splitClone,
+            data.ancestorsVault,
+            data.royaltyStack,
+            data.ancestorsAddresses,
+            data.ancestorsRoyalties
+        );
     }
 
     /// @dev Gets the new ancestors data
@@ -414,9 +408,9 @@ contract RoyaltyPolicyLAP is
                     royaltyStack += parentRoyalties[i];
                 }
             }
-
-            address[] memory parentAncestors = royaltyData[parentIpIds[i]].ancestorsAddresses;
-            uint32[] memory parentAncestorsRoyalties = royaltyData[parentIpIds[i]].ancestorsRoyalties;
+            RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+            address[] memory parentAncestors = $.royaltyData[parentIpIds[i]].ancestorsAddresses;
+            uint32[] memory parentAncestorsRoyalties = $.royaltyData[parentIpIds[i]].ancestorsRoyalties;
 
             for (uint256 j = 0; j < parentAncestors.length; j++) {
                 if (i == 0) {
@@ -472,25 +466,13 @@ contract RoyaltyPolicyLAP is
         return splitClone;
     }
 
-    /// @notice Returns the royalty data for a given IP asset
-    /// @param ipId The ipId to get the royalty data for
-    /// @return isUnlinkableToParents Indicates if the ipId is unlinkable to new parents
-    /// @return splitClone The address of the liquid split clone contract for a given ipId
-    /// @return ancestorsVault The address of the ancestors vault contract for a given ipId
-    /// @return royaltyStack The royalty stack of a given ipId is the sum of the royalties to be paid to each ancestors
-    /// @return ancestorsAddresses The ancestors addresses array
-    /// @return ancestorsRoyalties The ancestors royalties array
-    function getRoyaltyData(
-        address ipId
-    ) external view returns (bool, address, address, uint32, address[] memory, uint32[] memory) {
-        LAPRoyaltyData memory data = royaltyData[ipId];
-        return (
-            data.isUnlinkableToParents,
-            data.splitClone,
-            data.ancestorsVault,
-            data.royaltyStack,
-            data.ancestorsAddresses,
-            data.ancestorsRoyalties
-        );
+    function _getRoyaltyPolicyLAPStorage() private pure returns(RoyaltyPolicyLAPStorage storage $) {
+        assembly {
+            $.slot := RoyaltyPolicyLAPStorageLocation
+        }
     }
+
+    /// @dev Hook to authorize the upgrade according to UUPSUgradeable
+    /// @param newImplementation The address of the new implementation
+    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
 }

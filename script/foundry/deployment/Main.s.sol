@@ -142,7 +142,6 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
         );
         
         string memory contractKey;
-        Options memory opts;
 
         // Mock Assets (deploy first)
 
@@ -216,9 +215,10 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
         contractKey = "RoyaltyModule";
         _predeploy(contractKey);
+        impl = address(new RoyaltyModule());
         royaltyModule = RoyaltyModule(
-            Upgrades.deployUUPSProxy(
-                "RoyaltyModule.sol",
+            TestProxyHelper.deployUUPSProxy(
+                impl,
                 abi.encodeCall(
                     RoyaltyModule.initialize, (
                         address(governance)
@@ -226,26 +226,28 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
                 )
             )
         );
+        impl = address(0);
         _postdeploy(contractKey, address(royaltyModule));
 
         contractKey = "DisputeModule";
         _predeploy(contractKey);
-
-        opts.constructorData = abi.encode(
-            address(accessController),
-            address(ipAssetRegistry)
+        impl = address(
+            new DisputeModule(
+                address(accessController),
+                address(ipAssetRegistry)
+            )
         );
         disputeModule = DisputeModule(
-            Upgrades.deployUUPSProxy(
-                "DisputeModule.sol",
+            TestProxyHelper.deployUUPSProxy(
+                impl,
                 abi.encodeCall(
                     DisputeModule.initialize, (
                         address(governance)
                     )
-                ),
-                opts
+                )
             )
         );
+        impl = address(0);
         _postdeploy(contractKey, address(disputeModule));
 
         contractKey = "LicenseRegistry";
@@ -305,43 +307,48 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
         contractKey = "ArbitrationPolicySP";
         _predeploy(contractKey);
-        opts.constructorData = abi.encode(
-            address(disputeModule),
-            address(erc20),
-            ARBITRATION_PRICE
+        impl = address(
+            new ArbitrationPolicySP(
+                address(disputeModule),
+                address(erc20),
+                ARBITRATION_PRICE
+            )
         );
         arbitrationPolicySP = ArbitrationPolicySP(
-            Upgrades.deployUUPSProxy(
-                "ArbitrationPolicySP.sol",
+            TestProxyHelper.deployUUPSProxy(
+                impl,
                 abi.encodeCall(
                     ArbitrationPolicySP.initialize, (
                         address(governance)
                     )
-                ),
-                opts
+                )
             )
         );
+        impl = address(0);
         _postdeploy(contractKey, address(arbitrationPolicySP));
 
         contractKey = "RoyaltyPolicyLAP";
         _predeploy(contractKey);
-        opts.constructorData = abi.encode(
-            address(royaltyModule),
-            address(licensingModule),
-            LIQUID_SPLIT_FACTORY,
-            LIQUID_SPLIT_MAIN
+        impl = address(
+            new RoyaltyPolicyLAP(
+                address(royaltyModule),
+                address(licensingModule),
+                LIQUID_SPLIT_FACTORY,
+                LIQUID_SPLIT_MAIN
+            )
         );
+        
         royaltyPolicyLAP = RoyaltyPolicyLAP(
-            Upgrades.deployUUPSProxy(
-                "RoyaltyPolicyLAP.sol",
+            TestProxyHelper.deployUUPSProxy(
+                impl,
                 abi.encodeCall(
                     RoyaltyPolicyLAP.initialize, (
                         address(governance)
                     )
-                ),
-                opts
+                )
             )
         );
+        impl = address(0);
         _postdeploy(contractKey, address(royaltyPolicyLAP));
 
         contractKey = "AncestorsVaultLAP";
