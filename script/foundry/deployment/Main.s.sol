@@ -163,16 +163,18 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
 
         contractKey = "AccessController";
         _predeploy(contractKey);
+
+        address impl = address(new AccessController());
         accessController = AccessController(
-            Upgrades.deployUUPSProxy(
-                "AccessController.sol",
+            TestProxyHelper.deployUUPSProxy(
+                impl,
                 abi.encodeCall(
-                    AccessController.initialize, (
-                        address(governance)
-                    )
+                    AccessController.initialize,
+                    address(governance)
                 )
             )
         );
+        impl = address(0); // Make sure we don't deploy wrong impl
         _postdeploy(contractKey, address(accessController));
 
         contractKey = "IPAccountImpl";
@@ -182,16 +184,17 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
 
         contractKey = "ModuleRegistry";
         _predeploy(contractKey);
+        impl = address(new ModuleRegistry());
         moduleRegistry = ModuleRegistry(
-            Upgrades.deployUUPSProxy(
-                "ModuleRegistry.sol",
+            TestProxyHelper.deployUUPSProxy(
+                impl,
                 abi.encodeCall(
-                    ModuleRegistry.initialize, (
-                        address(governance)
-                    )
+                    AccessController.initialize,
+                    address(governance)
                 )
             )
         );
+        impl = address(0); // Make sure we don't deploy wrong impl
         _postdeploy(contractKey, address(moduleRegistry));
 
         contractKey = "IPAccountRegistry";
@@ -230,7 +233,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
 
         contractKey = "LicenseRegistry";
         _predeploy(contractKey);
-        address impl = address(new LicenseRegistry());
+        impl = address(new LicenseRegistry());
         licenseRegistry = LicenseRegistry(
             TestProxyHelper.deployUUPSProxy(
                 impl,
@@ -242,30 +245,31 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
                 )
             )
         );
+        impl = address(0); // Make sure we don't deploy wrong impl
         _postdeploy(contractKey, address(licenseRegistry));
 
         contractKey = "LicensingModule";
         _predeploy(contractKey);
 
-        Options memory opts;
-        opts.constructorData = abi.encode(
-            address(accessController),
-            address(ipAccountRegistry),
-            address(royaltyModule),
-            address(licenseRegistry),
-            address(disputeModule)
-        );
-        licensingModule = LicensingModule(
-            Upgrades.deployUUPSProxy(
-                "LicensingModule.sol",
-                abi.encodeCall(
-                    AccessController.initialize, (
-                        address(governance)
-                    )
-                ),
-                opts
+        impl = address(
+            new LicensingModule(
+                address(accessController),
+                address(ipAccountRegistry),
+                address(royaltyModule),
+                address(licenseRegistry),
+                address(disputeModule)
             )
         );
+        licensingModule = LicensingModule(
+            TestProxyHelper.deployUUPSProxy(
+                impl,
+                abi.encodeCall(
+                    LicensingModule.initialize,
+                    address(governance)
+                )
+            )
+        );
+        impl = address(0); // Make sure we don't deploy wrong impl
         _postdeploy(contractKey, address(licensingModule));
 
         contractKey = "IPResolver";
@@ -309,23 +313,26 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
         _postdeploy(contractKey, address(ancestorsVaultImpl));
 
         _predeploy("PILPolicyFrameworkManager");
-        opts.constructorData = abi.encode(
-            address(accessController),
-            address(ipAccountRegistry),
-            address(licensingModule)
+        impl = address(
+            new PILPolicyFrameworkManager(
+                address(accessController),
+                address(ipAccountRegistry),
+                address(licensingModule)
+            )
         );
         pilPfm = PILPolicyFrameworkManager(
-            Upgrades.deployUUPSProxy(
-                "PILPolicyFrameworkManager.sol",
+            TestProxyHelper.deployUUPSProxy(
+                impl,
                 abi.encodeCall(
-                    PILPolicyFrameworkManager.initialize, (
+                    PILPolicyFrameworkManager.initialize,
+                    (
                         "pil",
                         "https://github.com/storyprotocol/protocol-core/blob/main/PIL-Beta-2024-02.pdf"
                     )
-                ),
-                opts
+                )
             )
         );
+        impl = address(0); // Make sure we don't deploy wrong impl
         _postdeploy("PILPolicyFrameworkManager", address(pilPfm));
 
         //
