@@ -114,6 +114,7 @@ contract LicensingModule is
         ROYALTY_MODULE = RoyaltyModule(royaltyModule);
         LICENSE_REGISTRY = ILicenseRegistry(registry);
         DISPUTE_MODULE = IDisputeModule(disputeModule);
+        _disableInitializers();
     }
 
     function initialize(address governance) public initializer {

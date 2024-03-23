@@ -50,7 +50,9 @@ contract PILPolicyFrameworkManager is
             ipAccountRegistry,
             address(ILicensingModule(licensing).LICENSE_REGISTRY())
         )
-    {}
+    {
+        _disableInitializers();
+    }
 
     function initialize(string memory name, string memory licenseTextUrl) external initializer {
         __BasePolicyFrameworkManager_init(name, licenseTextUrl);
