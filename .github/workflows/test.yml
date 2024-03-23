@@ -45,7 +45,6 @@ jobs:
       - name: Run Contract Size check
         run: |
           forge --version
-          forge install OpenZeppelin/openzeppelin-foundry-upgrades --no-git
           forge build --force --sizes --skip test --skip script
       
       # This step requires full build to be run first
@@ -56,7 +55,7 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test -vvv --fork-url https://gateway.tenderly.co/public/sepolia --fork-block-number 5196000 --ffi --skip build
+          forge test -vvv --fork-url https://gateway.tenderly.co/public/sepolia --fork-block-number 5196000
         id: forge-test
 
       - name: Run solhint

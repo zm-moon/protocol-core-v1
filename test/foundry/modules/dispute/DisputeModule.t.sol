@@ -56,22 +56,9 @@ contract DisputeModuleTest is BaseTest {
         USDC.mint(ipAccount1, 1000 * 10 ** 6);
 
         // second arbitration policy
-        address impl = address(
-            new ArbitrationPolicySP(
-                getDisputeModule(),
-                address(USDC),
-                ARBITRATION_PRICE
-            )
-        );
+        address impl = address(new ArbitrationPolicySP(getDisputeModule(), address(USDC), ARBITRATION_PRICE));
         arbitrationPolicySP2 = ArbitrationPolicySP(
-            TestProxyHelper.deployUUPSProxy(
-                impl,
-                abi.encodeCall(
-                    ArbitrationPolicySP.initialize, (
-                        getGovernance()
-                    )
-                )
-            )
+            TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(ArbitrationPolicySP.initialize, (getGovernance())))
         );
 
         vm.startPrank(u.admin);

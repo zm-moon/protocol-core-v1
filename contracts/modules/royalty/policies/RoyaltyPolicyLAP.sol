@@ -466,7 +466,7 @@ contract RoyaltyPolicyLAP is
         return splitClone;
     }
 
-    function _getRoyaltyPolicyLAPStorage() private pure returns(RoyaltyPolicyLAPStorage storage $) {
+    function _getRoyaltyPolicyLAPStorage() private pure returns (RoyaltyPolicyLAPStorage storage $) {
         assembly {
             $.slot := RoyaltyPolicyLAPStorageLocation
         }

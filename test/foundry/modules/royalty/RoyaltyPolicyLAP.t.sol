@@ -178,23 +178,9 @@ contract TestRoyaltyPolicyLAP is BaseTest {
     }
 
     function test_RoyaltyPolicyLAP_setAncestorsVaultImplementation() public {
-        address impl = address(
-            new RoyaltyPolicyLAP(
-                address(1),
-                address(2),
-                address(3),
-                address(4)
-            )
-        );
+        address impl = address(new RoyaltyPolicyLAP(address(1), address(2), address(3), address(4)));
         RoyaltyPolicyLAP royaltyPolicyLAP2 = RoyaltyPolicyLAP(
-            TestProxyHelper.deployUUPSProxy(
-                impl,
-                abi.encodeCall(
-                    RoyaltyPolicyLAP.initialize, (
-                        getGovernance()
-                    )
-                )
-            )
+            TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(RoyaltyPolicyLAP.initialize, (getGovernance())))
         );
 
         vm.startPrank(u.admin);

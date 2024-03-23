@@ -18,7 +18,14 @@ import { ShortStringOps } from "../../utils/ShortStringOps.sol";
 /// @title Dispute Module
 /// @notice The dispute module acts as an enforcement layer for IP assets that allows raising and resolving disputes
 /// through arbitration by judges.
-contract DisputeModule is IDisputeModule, BaseModule, GovernableUpgradeable, ReentrancyGuardUpgradeable, AccessControlled, UUPSUpgradeable {
+contract DisputeModule is
+    IDisputeModule,
+    BaseModule,
+    GovernableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    AccessControlled,
+    UUPSUpgradeable
+{
     using EnumerableSet for EnumerableSet.Bytes32Set;
 
     /// @dev Storage for DisputeModule
@@ -44,7 +51,8 @@ contract DisputeModule is IDisputeModule, BaseModule, GovernableUpgradeable, Ree
     }
 
     // keccak256(abi.encode(uint256(keccak256("story-protocol.DisputeModule")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 private constant DisputeModuleStorageLocation = 0x682945c2d364b4630e68ffe0854d372acb0c4ff549a1e3dbc6f878bd8da0c800;
+    bytes32 private constant DisputeModuleStorageLocation =
+        0x682945c2d364b4630e68ffe0854d372acb0c4ff549a1e3dbc6f878bd8da0c800;
 
     string public constant override name = DISPUTE_MODULE_KEY;
 
@@ -59,10 +67,7 @@ contract DisputeModule is IDisputeModule, BaseModule, GovernableUpgradeable, Ree
     /// @param _controller The address of the access controller
     /// @param _assetRegistry The address of the asset registry
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        address _controller,
-        address _assetRegistry
-    ) AccessControlled(_controller, _assetRegistry) {
+    constructor(address _controller, address _assetRegistry) AccessControlled(_controller, _assetRegistry) {
         IP_ASSET_REGISTRY = IIPAssetRegistry(_assetRegistry);
         _disableInitializers();
     }
@@ -289,17 +294,18 @@ contract DisputeModule is IDisputeModule, BaseModule, GovernableUpgradeable, Ree
             bytes32 linkToDisputeEvidence,
             bytes32 targetTag,
             bytes32 currentTag
-        ) {
-            DisputeModuleStorage storage $ = _getDisputeModuleStorage();
-            return (
-                $.disputes[disputeId].targetIpId,
-                $.disputes[disputeId].disputeInitiator,
-                $.disputes[disputeId].arbitrationPolicy,
-                $.disputes[disputeId].linkToDisputeEvidence,
-                $.disputes[disputeId].targetTag,
-                $.disputes[disputeId].currentTag
-            );
-        }
+        )
+    {
+        DisputeModuleStorage storage $ = _getDisputeModuleStorage();
+        return (
+            $.disputes[disputeId].targetIpId,
+            $.disputes[disputeId].disputeInitiator,
+            $.disputes[disputeId].arbitrationPolicy,
+            $.disputes[disputeId].linkToDisputeEvidence,
+            $.disputes[disputeId].targetTag,
+            $.disputes[disputeId].currentTag
+        );
+    }
 
     /// @notice Indicates if a dispute tag is whitelisted
     /// @param tag The dispute tag
@@ -347,5 +353,4 @@ contract DisputeModule is IDisputeModule, BaseModule, GovernableUpgradeable, Ree
             $.slot := DisputeModuleStorageLocation
         }
     }
-    
 }

@@ -17,7 +17,13 @@ import { BaseModule } from "../BaseModule.sol";
 /// @title Story Protocol Royalty Module
 /// @notice The Story Protocol royalty module allows to set royalty policies an IP asset and pay royalties as a
 ///         derivative IP.
-contract RoyaltyModule is IRoyaltyModule, GovernableUpgradeable, ReentrancyGuardUpgradeable, BaseModule, UUPSUpgradeable {
+contract RoyaltyModule is
+    IRoyaltyModule,
+    GovernableUpgradeable,
+    ReentrancyGuardUpgradeable,
+    BaseModule,
+    UUPSUpgradeable
+{
     using ERC165Checker for address;
 
     /// @dev Storage structure for the RoyaltyModule
@@ -34,8 +40,9 @@ contract RoyaltyModule is IRoyaltyModule, GovernableUpgradeable, ReentrancyGuard
     }
 
     // keccak256(abi.encode(uint256(keccak256("story-protocol.RoyaltyModule")) - 1)) & ~bytes32(uint256(0xff));
-    bytes32 private constant RoyaltyModuleStorageLocation = 0x98dd2c34f21d19fd1d178ed731f3db3d03e0b4e39f02dbeb040e80c9427a0300;
-    
+    bytes32 private constant RoyaltyModuleStorageLocation =
+        0x98dd2c34f21d19fd1d178ed731f3db3d03e0b4e39f02dbeb040e80c9427a0300;
+
     string public constant override name = ROYALTY_MODULE_KEY;
 
     /// @notice Constructor
@@ -172,7 +179,8 @@ contract RoyaltyModule is IRoyaltyModule, GovernableUpgradeable, ReentrancyGuard
         // if the payer does not have a royalty policy set, then the payer is not a derivative ip and does not pay
         // royalties the receiver ip can have a zero royalty policy since that could mean it is an ip a root
         if (payerRoyaltyPolicy == address(0)) revert Errors.RoyaltyModule__NoRoyaltyPolicySet();
-        if (!$.isWhitelistedRoyaltyPolicy[payerRoyaltyPolicy]) revert Errors.RoyaltyModule__NotWhitelistedRoyaltyPolicy();
+        if (!$.isWhitelistedRoyaltyPolicy[payerRoyaltyPolicy])
+            revert Errors.RoyaltyModule__NotWhitelistedRoyaltyPolicy();
 
         IRoyaltyPolicy(payerRoyaltyPolicy).onRoyaltyPayment(msg.sender, receiverIpId, token, amount);
 

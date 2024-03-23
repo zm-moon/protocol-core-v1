@@ -37,11 +37,7 @@ contract ArbitrationPolicySP is IArbitrationPolicy, GovernableUpgradeable, UUPSU
     /// @param _paymentToken The ERC20 payment token address
     /// @param _arbitrationPrice The arbitration price
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        address _disputeModule,
-        address _paymentToken,
-        uint256 _arbitrationPrice
-    ) {
+    constructor(address _disputeModule, address _paymentToken, uint256 _arbitrationPrice) {
         if (_disputeModule == address(0)) revert Errors.ArbitrationPolicySP__ZeroDisputeModule();
         if (_paymentToken == address(0)) revert Errors.ArbitrationPolicySP__ZeroPaymentToken();
 
