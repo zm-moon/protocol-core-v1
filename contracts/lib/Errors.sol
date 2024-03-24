@@ -171,10 +171,10 @@ library Errors {
     error LicensingModule__LinkingRevokedLicense();
 
     ////////////////////////////////////////////////////////////////////////////
-    //                        LicensingModuleAware                            //
+    //                      BasePolicyFrameworkManager                        //
     ////////////////////////////////////////////////////////////////////////////
 
-    error LicensingModuleAware__CallerNotLicensingModule();
+    error BasePolicyFrameworkManager__CallerNotLicensingModule();
 
     ////////////////////////////////////////////////////////////////////////////
     //                         PolicyFrameworkManager                         //

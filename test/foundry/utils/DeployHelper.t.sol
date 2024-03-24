@@ -216,7 +216,11 @@ contract DeployHelper {
             console2.log("DeployHelper: Using REAL Governance");
         }
         if (d.accessController) {
-            accessController = new AccessController(getGovernance());
+            address impl = address(new AccessController());
+            accessController = AccessController(
+                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(AccessController.initialize, (getGovernance())))
+            );
+
             console2.log("DeployHelper: Using REAL AccessController");
             postDeployConditions.accessController_init = true;
             // Access Controller uses IPAccountRegistry in its initialize function.
@@ -231,7 +235,10 @@ contract DeployHelper {
 
     function _deployRegistryConditionally(DeployRegistryCondition memory d) public {
         if (d.moduleRegistry) {
-            moduleRegistry = new ModuleRegistry(getGovernance());
+            address impl = address(new ModuleRegistry());
+            moduleRegistry = ModuleRegistry(
+                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(AccessController.initialize, (getGovernance())))
+            );
             console2.log("DeployHelper: Using REAL ModuleRegistry");
             postDeployConditions.moduleRegistry_registerModules = true;
         }
@@ -283,12 +290,17 @@ contract DeployHelper {
         }
         if (d.licensingModule) {
             require(address(ipAccountRegistry) != address(0), "DeployHelper Module: IPAccountRegistry required");
-            licensingModule = new LicensingModule(
-                getAccessController(),
-                address(ipAccountRegistry),
-                getRoyaltyModule(),
-                getLicenseRegistry(),
-                getDisputeModule()
+            address impl = address(
+                new LicensingModule(
+                    getAccessController(),
+                    address(ipAccountRegistry),
+                    getRoyaltyModule(),
+                    getLicenseRegistry(),
+                    getDisputeModule()
+                )
+            );
+            licensingModule = LicensingModule(
+                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(LicensingModule.initialize, (getGovernance())))
             );
             console2.log("DeployHelper: Using REAL LicensingModule");
         }

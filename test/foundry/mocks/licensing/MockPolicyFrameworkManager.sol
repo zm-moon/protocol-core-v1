@@ -24,11 +24,12 @@ contract MockPolicyFrameworkManager is BasePolicyFrameworkManager {
 
     event MockPolicyAdded(uint256 indexed policyId, MockPolicy policy);
 
-    constructor(
-        MockPolicyFrameworkConfig memory conf
-    ) BasePolicyFrameworkManager(conf.licensingModule, conf.name, conf.licenseUrl) {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(MockPolicyFrameworkConfig memory conf) BasePolicyFrameworkManager(conf.licensingModule) {
         config = conf;
         royaltyPolicy = conf.royaltyPolicy;
+        _getBasePolicyFrameworkManagerStorage().name = conf.name;
+        _getBasePolicyFrameworkManagerStorage().licenseTextUrl = conf.licenseUrl;
     }
 
     function registerPolicy(MockPolicy calldata mockPolicy) external returns (uint256 policyId) {

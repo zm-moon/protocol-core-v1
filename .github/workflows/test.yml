@@ -55,7 +55,8 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test -v --fork-url https://gateway.tenderly.co/public/sepolia --fork-block-number 5196000
+          forge test -vvv --fork-url https://gateway.tenderly.co/public/sepolia --fork-block-number 5196000
+        id: forge-test
 
       - name: Run solhint
         run: npx solhint contracts/**/*.sol

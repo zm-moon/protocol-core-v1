@@ -17,19 +17,11 @@ abstract contract AccessControlled {
     using IPAccountChecker for IIPAccountRegistry;
 
     /// @notice The IAccessController instance for permission checks.
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IAccessController public immutable ACCESS_CONTROLLER;
     /// @notice The IIPAccountRegistry instance for IP account verification.
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IIPAccountRegistry public immutable IP_ACCOUNT_REGISTRY;
-
-    /// @dev Initializes the contract by setting the ACCESS_CONTROLLER and IP_ACCOUNT_REGISTRY addresses.
-    /// @param accessController The address of the AccessController contract.
-    /// @param ipAccountRegistry The address of the IPAccountRegistry contract.
-    constructor(address accessController, address ipAccountRegistry) {
-        if (accessController == address(0)) revert Errors.AccessControlled__ZeroAddress();
-        if (ipAccountRegistry == address(0)) revert Errors.AccessControlled__ZeroAddress();
-        ACCESS_CONTROLLER = IAccessController(accessController);
-        IP_ACCOUNT_REGISTRY = IIPAccountRegistry(ipAccountRegistry);
-    }
 
     /// @notice Verifies that the caller has the necessary permission for the given IPAccount.
     /// @dev Modifier that calls _verifyPermission to check if the provided IP account has the required permission.
@@ -49,6 +41,17 @@ abstract contract AccessControlled {
             revert Errors.AccessControlled__CallerIsNotIpAccount(msg.sender);
         }
         _;
+    }
+
+    /// @dev Constructor contract by setting the ACCESS_CONTROLLER and IP_ACCOUNT_REGISTRY addresses.
+    /// @param accessController The address of the AccessController contract.
+    /// @param ipAccountRegistry The address of the IPAccountRegistry contract.
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(address accessController, address ipAccountRegistry) {
+        if (accessController == address(0)) revert Errors.AccessControlled__ZeroAddress();
+        if (ipAccountRegistry == address(0)) revert Errors.AccessControlled__ZeroAddress();
+        ACCESS_CONTROLLER = IAccessController(accessController);
+        IP_ACCOUNT_REGISTRY = IIPAccountRegistry(ipAccountRegistry);
     }
 
     /// @dev Internal function to verify if the caller (msg.sender) has the required permission to execute

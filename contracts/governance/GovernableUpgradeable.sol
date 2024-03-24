@@ -12,8 +12,9 @@ import { GovernanceLib } from "../lib/GovernanceLib.sol";
 /// @title Governable
 /// @dev All contracts managed by governance should inherit from this contract.
 abstract contract GovernableUpgradeable is IGovernable, Initializable {
-    /// @custom:storage-location erc7201:story-protocol.GovernableUpgradeable
+    /// @dev Storage for GovernableUpgradeable
     /// @param governance The address of the governance.
+    /// @custom:storage-location erc7201:story-protocol.GovernableUpgradeable
     struct GovernableUpgradeableStorage {
         address governance;
     }
@@ -44,7 +45,7 @@ abstract contract GovernableUpgradeable is IGovernable, Initializable {
         _disableInitializers();
     }
 
-    function __GovernableUpgradeable_init(address governance_) internal {
+    function __GovernableUpgradeable_init(address governance_) internal onlyInitializing {
         if (governance_ == address(0)) revert Errors.Governance__ZeroAddress();
         _getGovernableUpgradeableStorage().governance = governance_;
         emit GovernanceUpdated(governance_);

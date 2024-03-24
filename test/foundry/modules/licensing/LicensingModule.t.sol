@@ -10,7 +10,7 @@ import { AccessPermission } from "contracts/lib/AccessPermission.sol";
 import { Errors } from "contracts/lib/Errors.sol";
 import { Licensing } from "contracts/lib/Licensing.sol";
 import { RegisterPILPolicyParams } from "contracts/interfaces/modules/licensing/IPILPolicyFrameworkManager.sol";
-import { PILPolicyFrameworkManager, PILPolicy } from "contracts/modules/licensing/PILPolicyFrameworkManager.sol";
+import { PILPolicy } from "contracts/modules/licensing/PILPolicyFrameworkManager.sol";
 
 // test
 // solhint-disable-next-line max-line-length
@@ -26,7 +26,6 @@ contract LicensingModuleTest is BaseTest {
     MockAccessController internal mockAccessController = new MockAccessController();
 
     MockPolicyFrameworkManager internal mockPFM;
-    PILPolicyFrameworkManager internal pilManager;
 
     MockERC721 internal nft = new MockERC721("MockERC721");
     MockERC721 internal gatedNftFoo = new MockERC721{ salt: bytes32(uint256(1)) }("GatedNftFoo");
@@ -66,14 +65,6 @@ contract LicensingModuleTest is BaseTest {
             })
         );
 
-        pilManager = new PILPolicyFrameworkManager(
-            address(mockAccessController),
-            address(ipAccountRegistry),
-            address(licensingModule),
-            "PILPolicyFrameworkManager",
-            licenseUrl
-        );
-
         // Create IPAccounts
         nft.mintId(ipOwner, 1);
         nft.mintId(ipOwner, 2);
@@ -103,16 +94,8 @@ contract LicensingModuleTest is BaseTest {
     }
 
     function test_LicensingModule_registerPFM() public {
-        PILPolicyFrameworkManager pfm1 = new PILPolicyFrameworkManager(
-            address(accessController),
-            address(ipAccountRegistry),
-            address(licensingModule),
-            "PILPolicyFrameworkManager",
-            licenseUrl
-        );
-
-        licensingModule.registerPolicyFrameworkManager(address(pfm1));
-        assertTrue(licensingModule.isFrameworkRegistered(address(pfm1)));
+        licensingModule.registerPolicyFrameworkManager(_deployPILFramework("license Url"));
+        assertTrue(licensingModule.isFrameworkRegistered(address(_pilFramework())));
     }
 
     function test_LicensingModule_registerPFM_revert_invalidPolicyFramework() public {
@@ -121,16 +104,10 @@ contract LicensingModuleTest is BaseTest {
     }
 
     function test_LicensingModule_registerPFM_revert_emptyLicenseUrl() public {
-        PILPolicyFrameworkManager pfm1 = new PILPolicyFrameworkManager(
-            address(accessController),
-            address(ipAccountRegistry),
-            address(licensingModule),
-            "PILPolicyFrameworkManager",
-            ""
-        );
+        _deployPILFramework("");
 
         vm.expectRevert(Errors.LicensingModule__EmptyLicenseUrl.selector);
-        licensingModule.registerPolicyFrameworkManager(address(pfm1));
+        licensingModule.registerPolicyFrameworkManager(address(_pilFramework()));
     }
 
     function test_LicensingModule_registerPolicy_revert_frameworkNotFound() public {
@@ -585,7 +562,7 @@ contract LicensingModuleTest is BaseTest {
     }
 
     function test_LicensingModule_revert_HookVerifyFail() public {
-        licensingModule.registerPolicyFrameworkManager(address(pilManager));
+        _setPILPolicyFrameworkManager();
 
         PILPolicy memory policyData = PILPolicy({
             attribution: true,
@@ -612,7 +589,7 @@ contract LicensingModuleTest is BaseTest {
         policyData.territories[0] = "territory1";
         policyData.distributionChannels[0] = "distributionChannel1";
 
-        uint256 policyId = pilManager.registerPolicy(
+        uint256 policyId = _pilFramework().registerPolicy(
             RegisterPILPolicyParams({
                 transferable: true,
                 royaltyPolicy: address(mockRoyaltyPolicyLAP),

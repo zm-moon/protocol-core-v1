@@ -4,10 +4,12 @@ pragma solidity 0.8.23;
 import { AccessControlled } from "../../../access/AccessControlled.sol";
 import { ILicenseRegistry } from "../../../interfaces/registries/ILicenseRegistry.sol";
 
+import { Initializable } from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
 /// @title LicensorApprovalChecker
 /// @notice Manages the approval of derivative IP accounts by the licensor. Used to verify
 /// licensing terms like "Derivatives With Approval" in PIL.
-abstract contract LicensorApprovalChecker is AccessControlled {
+abstract contract LicensorApprovalChecker is AccessControlled, Initializable {
     /// @notice Emits when a derivative IP account is approved by the licensor.
     /// @param licenseId The ID of the license waiting for approval
     /// @param ipId The ID of the derivative IP to be approved
@@ -15,13 +17,28 @@ abstract contract LicensorApprovalChecker is AccessControlled {
     /// @param approved Result of the approval
     event DerivativeApproved(uint256 indexed licenseId, address indexed ipId, address indexed caller, bool approved);
 
+    /// @notice Storage for derivative IP approvals.
+    /// @param approvals Approvals for derivative IP.
+    /// @dev License Id => licensor => childIpId => approved
+    /// @custom:storage-location erc7201:story-protocol.LicensorApprovalChecker
+    struct LicensorApprovalCheckerStorage {
+        mapping(uint256 => mapping(address => mapping(address => bool))) approvals;
+    }
+
     /// @notice Returns the license registry address
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     ILicenseRegistry public immutable LICENSE_REGISTRY;
 
-    /// @notice Approvals for derivative IP.
-    /// @dev License Id => licensor => childIpId => approved
-    mapping(uint256 => mapping(address => mapping(address => bool))) private _approvals;
+    // keccak256(abi.encode(uint256(keccak256("story-protocol.LicensorApprovalChecker")) - 1))
+    // & ~bytes32(uint256(0xff));
+    bytes32 private constant LicensorApprovalCheckerStorageLocation =
+        0x7a71306cccadc52d66a0a466930bd537acf0ba900f21654919d58cece4cf9500;
 
+    /// @notice Constructor function
+    /// @param accessController The address of the AccessController contract
+    /// @param ipAccountRegistry The address of the IPAccountRegistry contract
+    /// @param licenseRegistry The address of the LicenseRegistry contract
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
         address accessController,
         address ipAccountRegistry,
@@ -45,7 +62,8 @@ abstract contract LicensorApprovalChecker is AccessControlled {
     /// @return approved True if the derivative IP account using the license is approved
     function isDerivativeApproved(uint256 licenseId, address childIpId) public view returns (bool) {
         address licensorIpId = LICENSE_REGISTRY.licensorIpId(licenseId);
-        return _approvals[licenseId][licensorIpId][childIpId];
+        LicensorApprovalCheckerStorage storage $ = _getLicensorApprovalCheckerStorage();
+        return $.approvals[licenseId][licensorIpId][childIpId];
     }
 
     /// @notice Sets the approval for a derivative IP account.
@@ -60,7 +78,15 @@ abstract contract LicensorApprovalChecker is AccessControlled {
         address childIpId,
         bool approved
     ) internal verifyPermission(licensorIpId) {
-        _approvals[licenseId][licensorIpId][childIpId] = approved;
+        LicensorApprovalCheckerStorage storage $ = _getLicensorApprovalCheckerStorage();
+        $.approvals[licenseId][licensorIpId][childIpId] = approved;
         emit DerivativeApproved(licenseId, licensorIpId, msg.sender, approved);
+    }
+
+    /// @dev Returns the storage struct of LicensorApprovalChecker.
+    function _getLicensorApprovalCheckerStorage() private pure returns (LicensorApprovalCheckerStorage storage $) {
+        assembly {
+            $.slot := LicensorApprovalCheckerStorageLocation
+        }
     }
 }

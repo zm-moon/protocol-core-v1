@@ -5,27 +5,13 @@ import { IAccessController } from "contracts/interfaces/IAccessController.sol";
 import { ILicensingModule } from "contracts/interfaces/modules/licensing/ILicensingModule.sol";
 import { IRoyaltyModule } from "contracts/interfaces/modules/royalty/IRoyaltyModule.sol";
 import { Errors } from "contracts/lib/Errors.sol";
-import { PILPolicyFrameworkManager } from "contracts/modules/licensing/PILPolicyFrameworkManager.sol";
 
 import { BaseTest } from "test/foundry/utils/BaseTest.t.sol";
 
 contract PILPolicyFrameworkCompatibilityTest is BaseTest {
-    PILPolicyFrameworkManager internal pilFramework;
-
     string internal licenseUrl = "https://example.com/license";
     address internal ipId1;
     address internal ipId2;
-
-    modifier withPILPolicySimple(
-        string memory name,
-        bool commercial,
-        bool derivatives,
-        bool reciprocal
-    ) {
-        _mapPILPolicySimple(name, commercial, derivatives, reciprocal, 100);
-        _addPILPolicyFromMapping(name, address(pilFramework));
-        _;
-    }
 
     modifier withAliceOwningDerivativeIp2(string memory policyName) {
         // Must add the policy first to set the royalty policy (if policy is commercial)
@@ -59,15 +45,7 @@ contract PILPolicyFrameworkCompatibilityTest is BaseTest {
         licensingModule = ILicensingModule(getLicensingModule());
         royaltyModule = IRoyaltyModule(getRoyaltyModule());
 
-        pilFramework = new PILPolicyFrameworkManager(
-            address(accessController),
-            address(ipAccountRegistry),
-            address(licensingModule),
-            "PILPolicyFrameworkManager",
-            licenseUrl
-        );
-
-        licensingModule.registerPolicyFrameworkManager(address(pilFramework));
+        _setPILPolicyFrameworkManager();
 
         mockNFT.mintId(bob, 1);
         mockNFT.mintId(alice, 2);
@@ -182,7 +160,7 @@ contract PILPolicyFrameworkCompatibilityTest is BaseTest {
 
         _mapPILPolicySimple("other_policy", true, true, false, 100);
         _getMappedPilPolicy("other_policy").attribution = false;
-        _addPILPolicyFromMapping("other_policy", address(pilFramework));
+        _addPILPolicyFromMapping("other_policy", address(_pilFramework()));
 
         vm.expectRevert(Errors.LicensingModule__DerivativesCannotAddPolicy.selector);
         vm.prank(alice);

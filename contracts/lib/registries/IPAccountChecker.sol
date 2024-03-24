@@ -23,7 +23,7 @@ library IPAccountChecker {
         uint256 chainId_,
         address tokenContract_,
         uint256 tokenId_
-    ) external view returns (bool) {
+    ) internal view returns (bool) {
         return ipAccountRegistry_.ipAccount(chainId_, tokenContract_, tokenId_).code.length != 0;
     }
 
@@ -34,7 +34,7 @@ library IPAccountChecker {
     function isIpAccount(
         IIPAccountRegistry ipAccountRegistry_,
         address ipAccountAddress_
-    ) external view returns (bool) {
+    ) internal view returns (bool) {
         if (ipAccountAddress_ == address(0)) return false;
         if (ipAccountAddress_.code.length == 0) return false;
         if (!ERC165Checker.supportsERC165(ipAccountAddress_)) return false;

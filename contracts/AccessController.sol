@@ -9,7 +9,8 @@ import { IPAccountChecker } from "./lib/registries/IPAccountChecker.sol";
 import { IIPAccount } from "./interfaces/IIPAccount.sol";
 import { AccessPermission } from "./lib/AccessPermission.sol";
 import { Errors } from "./lib/Errors.sol";
-import { Governable } from "./governance/Governable.sol";
+import { GovernableUpgradeable } from "./governance/GovernableUpgradeable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 /// @title AccessController
 /// @dev This contract is used to control access permissions for different function calls in the protocol.
@@ -26,29 +27,45 @@ import { Governable } from "./governance/Governable.sol";
 /// - setPermission: Sets the permission for a specific function call.
 /// - getPermission: Returns the permission level for a specific function call.
 /// - checkPermission: Checks if a specific function call is allowed.
-contract AccessController is IAccessController, Governable {
+contract AccessController is IAccessController, GovernableUpgradeable, UUPSUpgradeable {
     using IPAccountChecker for IIPAccountRegistry;
 
-    address public IP_ACCOUNT_REGISTRY;
-    address public MODULE_REGISTRY;
-
-    /// @dev Tracks the permission granted to an encoded permission path, where the
+    /// @dev The storage struct of AccessController.
+    /// @param encodedPermissions tracks the permission granted to an encoded permission path, where the
     /// encoded permission path = keccak256(abi.encodePacked(ipAccount, signer, to, func))
-    mapping(bytes32 => uint8) internal encodedPermissions;
+    /// @notice The address of the IP Account Registry.
+    /// @notice The address of the Module Registry.
+    /// @custom:storage-location erc7201:story-protocol.AccessController
+    struct AccessControllerStorage {
+        mapping(bytes32 => uint8) encodedPermissions;
+        address ipAccountRegistry;
+        address moduleRegistry;
+    }
 
-    constructor(address governance) Governable(governance) {}
+    // keccak256(abi.encode(uint256(keccak256("story-protocol.AccessController")) - 1)) & ~bytes32(uint256(0xff));
+    bytes32 private constant AccessControllerStorageLocation =
+        0xe80df7f3a04d1e1a0b61a4a820184d4b4a2f8a6a808f315dbcc7b502f40b1800;
 
-    // TODO: Change the function name to not clash with potential proxy contract `initialize`.
-    // TODO: Only allow calling once.
-    /// @dev Initialize the Access Controller with the IP Account Registry and Module Registry addresses.
-    /// These are separated from the constructor, because we need to deploy the AccessController first for
-    /// to deploy many registry and module contracts, including the IP Account Registry and Module Registry.
-    /// @dev Enforced to be only callable by the protocol admin in governance.
-    /// @param ipAccountRegistry The address of the IP Account Registry.
-    /// @param moduleRegistry The address of the Module Registry.
-    function initialize(address ipAccountRegistry, address moduleRegistry) external onlyProtocolAdmin {
-        IP_ACCOUNT_REGISTRY = ipAccountRegistry;
-        MODULE_REGISTRY = moduleRegistry;
+    /// Constructor
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
+    /// @notice Initializes implementation contract
+    /// @param governance The address of the governance contract
+    function initialize(address governance) external initializer {
+        __GovernableUpgradeable_init(governance);
+    }
+
+    /// @notice Sets the addresses of the IP account registry and the module registry
+    /// @dev TODO: figure out how to set these addresses in the constructor to make them immutable
+    /// @param ipAccountRegistry address of the IP account registry
+    /// @param moduleRegistry address of the module registry
+    function setAddresses(address ipAccountRegistry, address moduleRegistry) external onlyProtocolAdmin {
+        AccessControllerStorage storage $ = _getAccessControllerStorage();
+        $.ipAccountRegistry = ipAccountRegistry;
+        $.moduleRegistry = moduleRegistry;
     }
 
     /// @notice Sets a batch of permissions in a single transaction.
@@ -115,14 +132,15 @@ contract AccessController is IAccessController, Governable {
         if (signer == address(0)) {
             revert Errors.AccessController__SignerIsZeroAddress();
         }
-        if (!IIPAccountRegistry(IP_ACCOUNT_REGISTRY).isIpAccount(ipAccount)) {
+        AccessControllerStorage storage $ = _getAccessControllerStorage();
+        if (!IIPAccountRegistry($.ipAccountRegistry).isIpAccount(ipAccount)) {
             revert Errors.AccessController__IPAccountIsNotValid(ipAccount);
         }
         // permission must be one of ABSTAIN, ALLOW, DENY
         if (permission > 2) {
             revert Errors.AccessController__PermissionIsNotValid();
         }
-        if (!IModuleRegistry(MODULE_REGISTRY).isRegistered(msg.sender) && ipAccount != msg.sender) {
+        if (!IModuleRegistry($.moduleRegistry).isRegistered(msg.sender) && ipAccount != msg.sender) {
             revert Errors.AccessController__CallerIsNotIPAccount();
         }
         _setPermission(ipAccount, signer, to, func, permission);
@@ -144,15 +162,16 @@ contract AccessController is IAccessController, Governable {
         // The ipAccount is restricted to interact exclusively with registered modules.
         // This includes initiating calls to these modules and receiving calls from them.
         // Additionally, it can modify Permissions settings.
+        AccessControllerStorage storage $ = _getAccessControllerStorage();
         if (
             to != address(this) &&
-            !IModuleRegistry(MODULE_REGISTRY).isRegistered(to) &&
-            !IModuleRegistry(MODULE_REGISTRY).isRegistered(signer)
+            !IModuleRegistry($.moduleRegistry).isRegistered(to) &&
+            !IModuleRegistry($.moduleRegistry).isRegistered(signer)
         ) {
             revert Errors.AccessController__BothCallerAndRecipientAreNotRegisteredModule(signer, to);
         }
         // Must be a valid IPAccount
-        if (!IIPAccountRegistry(IP_ACCOUNT_REGISTRY).isIpAccount(ipAccount)) {
+        if (!IIPAccountRegistry($.ipAccountRegistry).isIpAccount(ipAccount)) {
             revert Errors.AccessController__IPAccountIsNotValid(ipAccount);
         }
         // Owner can call all functions of all modules
@@ -196,12 +215,14 @@ contract AccessController is IAccessController, Governable {
     /// @param func The function selector of `to` that can be called by the `signer` on behalf of the `ipAccount`
     /// @return permission The current permission level for the function call on `to` by the `signer` for `ipAccount`
     function getPermission(address ipAccount, address signer, address to, bytes4 func) public view returns (uint8) {
-        return encodedPermissions[_encodePermission(ipAccount, signer, to, func)];
+        AccessControllerStorage storage $ = _getAccessControllerStorage();
+        return $.encodedPermissions[_encodePermission(ipAccount, signer, to, func)];
     }
 
     /// @dev The permission parameters will be encoded into bytes32 as key in the permissions mapping to save storage
     function _setPermission(address ipAccount, address signer, address to, bytes4 func, uint8 permission) internal {
-        encodedPermissions[_encodePermission(ipAccount, signer, to, func)] = permission;
+        AccessControllerStorage storage $ = _getAccessControllerStorage();
+        $.encodedPermissions[_encodePermission(ipAccount, signer, to, func)] = permission;
     }
 
     /// @dev encode permission to hash (bytes32)
@@ -216,4 +237,15 @@ contract AccessController is IAccessController, Governable {
         }
         return keccak256(abi.encode(IIPAccount(payable(ipAccount)).owner(), ipAccount, signer, to, func));
     }
+
+    /// @dev Returns the storage struct of AccessController.
+    function _getAccessControllerStorage() private pure returns (AccessControllerStorage storage $) {
+        assembly {
+            $.slot := AccessControllerStorageLocation
+        }
+    }
+
+    /// @dev Hook to authorize the upgrade according to UUPSUgradeable
+    /// @param newImplementation The address of the new implementation
+    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
 }

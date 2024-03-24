@@ -23,7 +23,7 @@ contract Flows_Integration_Disputes is BaseIntegration {
         super.setUp();
 
         // Register PIL Framework
-        _deployLFM_PIL();
+        _setPILPolicyFrameworkManager();
 
         // Register a License
         _mapPILPolicySimple({

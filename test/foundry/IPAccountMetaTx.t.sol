@@ -29,7 +29,6 @@ contract IPAccountMetaTxTest is BaseTest {
         buildDeployRegistryCondition(DeployRegistryCondition({ moduleRegistry: true, licenseRegistry: false }));
         deployConditionally();
         postDeploymentSetup();
-
         ownerPrivateKey = 0xA11111;
         callerPrivateKey = 0xB22222;
         owner = vm.addr(ownerPrivateKey);

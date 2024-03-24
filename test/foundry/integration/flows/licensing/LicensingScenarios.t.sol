@@ -23,7 +23,7 @@ contract Licensing_Scenarios is BaseIntegration {
         super.setUp();
 
         // Register PIL Framework
-        _deployLFM_PIL();
+        _setPILPolicyFrameworkManager();
 
         // Register an original work with both policies set
         mockNFT.mintId(u.alice, 1);
