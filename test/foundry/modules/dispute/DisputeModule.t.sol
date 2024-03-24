@@ -46,9 +46,7 @@ contract DisputeModuleTest is BaseTest {
             DeployModuleCondition({ disputeModule: true, royaltyModule: false, licensingModule: false })
         );
         buildDeployPolicyCondition(DeployPolicyCondition({ arbitrationPolicySP: true, royaltyPolicyLAP: true }));
-        buildDeployMiscCondition(
-            DeployMiscCondition({ ipAssetRenderer: false, ipMetadataProvider: false, ipResolver: true })
-        );
+        buildDeployMiscCondition(DeployMiscCondition({ ipMetadataProvider: false, ipResolver: true }));
         deployConditionally();
         postDeploymentSetup();
 

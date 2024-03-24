@@ -26,7 +26,6 @@ import { IP_RESOLVER_MODULE_KEY, DISPUTE_MODULE_KEY, ROYALTY_MODULE_KEY, LICENSI
 import { IPMetadataProvider } from "contracts/registries/metadata/IPMetadataProvider.sol";
 import { IPAccountRegistry } from "contracts/registries/IPAccountRegistry.sol";
 import { IPAssetRegistry } from "contracts/registries/IPAssetRegistry.sol";
-import { IPAssetRenderer } from "contracts/registries/metadata/IPAssetRenderer.sol";
 import { ModuleRegistry } from "contracts/registries/ModuleRegistry.sol";
 import { LicenseRegistry } from "contracts/registries/LicenseRegistry.sol";
 import { LicensingModule } from "contracts/modules/licensing/LicensingModule.sol";
@@ -84,7 +83,6 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
     // Misc.
     Governance internal governance;
     AccessController internal accessController;
-    IPAssetRenderer internal ipAssetRenderer;
     IPResolver internal ipResolver;
 
     // Mocks
@@ -185,15 +183,6 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler {
             address(governance)
         );
         _postdeploy(contractKey, address(ipAssetRegistry));
-
-        contractKey = "IPAssetRenderer";
-        _predeploy(contractKey);
-        ipAssetRenderer = new IPAssetRenderer(
-            address(ipAssetRegistry),
-            address(licenseRegistry),
-            address(royaltyModule)
-        );
-        _postdeploy(contractKey, address(ipAssetRenderer));
 
         contractKey = "RoyaltyModule";
         _predeploy(contractKey);

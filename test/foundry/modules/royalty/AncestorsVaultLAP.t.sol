@@ -50,9 +50,7 @@ contract TestAncestorsVaultLAP is BaseTest {
             DeployModuleCondition({ disputeModule: false, royaltyModule: true, licensingModule: false })
         );
         buildDeployPolicyCondition(DeployPolicyCondition({ arbitrationPolicySP: false, royaltyPolicyLAP: true }));
-        buildDeployMiscCondition(
-            DeployMiscCondition({ ipAssetRenderer: false, ipMetadataProvider: false, ipResolver: true })
-        );
+        buildDeployMiscCondition(DeployMiscCondition({ ipMetadataProvider: false, ipResolver: true }));
         deployConditionally();
         postDeploymentSetup();
 
