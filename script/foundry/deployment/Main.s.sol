@@ -190,7 +190,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
             TestProxyHelper.deployUUPSProxy(
                 impl,
                 abi.encodeCall(
-                    AccessController.initialize,
+                    ModuleRegistry.initialize,
                     address(governance)
                 )
             )
