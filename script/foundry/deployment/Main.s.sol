@@ -140,7 +140,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
             LIQUID_SPLIT_FACTORY != address(0) && LIQUID_SPLIT_MAIN != address(0),
             "DeployMain: Liquid Split Addresses Not Set"
         );
-
+        
         string memory contractKey;
 
         // Mock Assets (deploy first)
@@ -190,7 +190,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
             TestProxyHelper.deployUUPSProxy(
                 impl,
                 abi.encodeCall(
-                    AccessController.initialize,
+                    ModuleRegistry.initialize,
                     address(governance)
                 )
             )
@@ -215,12 +215,39 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
         contractKey = "RoyaltyModule";
         _predeploy(contractKey);
-        royaltyModule = new RoyaltyModule(address(governance));
+        impl = address(new RoyaltyModule());
+        royaltyModule = RoyaltyModule(
+            TestProxyHelper.deployUUPSProxy(
+                impl,
+                abi.encodeCall(
+                    RoyaltyModule.initialize, (
+                        address(governance)
+                    )
+                )
+            )
+        );
+        impl = address(0);
         _postdeploy(contractKey, address(royaltyModule));
 
         contractKey = "DisputeModule";
         _predeploy(contractKey);
-        disputeModule = new DisputeModule(address(accessController), address(ipAssetRegistry), address(governance));
+        impl = address(
+            new DisputeModule(
+                address(accessController),
+                address(ipAssetRegistry)
+            )
+        );
+        disputeModule = DisputeModule(
+            TestProxyHelper.deployUUPSProxy(
+                impl,
+                abi.encodeCall(
+                    DisputeModule.initialize, (
+                        address(governance)
+                    )
+                )
+            )
+        );
+        impl = address(0);
         _postdeploy(contractKey, address(disputeModule));
 
         contractKey = "LicenseRegistry";
@@ -280,23 +307,48 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
         contractKey = "ArbitrationPolicySP";
         _predeploy(contractKey);
-        arbitrationPolicySP = new ArbitrationPolicySP(
-            address(disputeModule),
-            address(erc20),
-            ARBITRATION_PRICE,
-            address(governance)
+        impl = address(
+            new ArbitrationPolicySP(
+                address(disputeModule),
+                address(erc20),
+                ARBITRATION_PRICE
+            )
         );
+        arbitrationPolicySP = ArbitrationPolicySP(
+            TestProxyHelper.deployUUPSProxy(
+                impl,
+                abi.encodeCall(
+                    ArbitrationPolicySP.initialize, (
+                        address(governance)
+                    )
+                )
+            )
+        );
+        impl = address(0);
         _postdeploy(contractKey, address(arbitrationPolicySP));
 
         contractKey = "RoyaltyPolicyLAP";
         _predeploy(contractKey);
-        royaltyPolicyLAP = new RoyaltyPolicyLAP(
-            address(royaltyModule),
-            address(licensingModule),
-            LIQUID_SPLIT_FACTORY,
-            LIQUID_SPLIT_MAIN,
-            address(governance)
+        impl = address(
+            new RoyaltyPolicyLAP(
+                address(royaltyModule),
+                address(licensingModule),
+                LIQUID_SPLIT_FACTORY,
+                LIQUID_SPLIT_MAIN
+            )
         );
+        
+        royaltyPolicyLAP = RoyaltyPolicyLAP(
+            TestProxyHelper.deployUUPSProxy(
+                impl,
+                abi.encodeCall(
+                    RoyaltyPolicyLAP.initialize, (
+                        address(governance)
+                    )
+                )
+            )
+        );
+        impl = address(0);
         _postdeploy(contractKey, address(royaltyPolicyLAP));
 
         contractKey = "AncestorsVaultLAP";

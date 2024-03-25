@@ -278,13 +278,22 @@ contract DeployHelper {
 
     function _deployModuleConditionally(DeployModuleCondition memory d) public {
         if (d.royaltyModule) {
-            royaltyModule = new RoyaltyModule(getGovernance());
+            address impl = address(new RoyaltyModule());
+            royaltyModule = RoyaltyModule(
+                TestProxyHelper.deployUUPSProxy(
+                    impl,
+                    abi.encodeCall(RoyaltyModule.initialize, (address(getGovernance())))
+                )
+            );
             console2.log("DeployHelper: Using REAL RoyaltyModule");
             postDeployConditions.royaltyModule_configure = true;
         }
         if (d.disputeModule) {
             require(address(ipAssetRegistry) != address(0), "DeployHelper Module: IPAssetRegistry required");
-            disputeModule = new DisputeModule(getAccessController(), address(ipAssetRegistry), getGovernance());
+            address impl = address(new DisputeModule(address(accessController), address(ipAssetRegistry)));
+            disputeModule = DisputeModule(
+                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(DisputeModule.initialize, (address(governance))))
+            );
             console2.log("DeployHelper: Using REAL DisputeModule");
             postDeployConditions.disputeModule_configure = true;
         }
@@ -308,11 +317,9 @@ contract DeployHelper {
 
     function _deployPolicyConditionally(DeployPolicyCondition memory d) public {
         if (d.arbitrationPolicySP) {
-            arbitrationPolicySP = new ArbitrationPolicySP(
-                getDisputeModule(),
-                address(erc20),
-                ARBITRATION_PRICE,
-                getGovernance()
+            address impl = address(new ArbitrationPolicySP(getDisputeModule(), address(erc20), ARBITRATION_PRICE));
+            arbitrationPolicySP = ArbitrationPolicySP(
+                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(ArbitrationPolicySP.initialize, (getGovernance())))
             );
             console2.log("DeployHelper: Using REAL ArbitrationPolicySP");
         } else {
@@ -320,12 +327,11 @@ contract DeployHelper {
             console2.log("DeployHelper: Using Mock ArbitrationPolicySP");
         }
         if (d.royaltyPolicyLAP) {
-            royaltyPolicyLAP = new RoyaltyPolicyLAP(
-                getRoyaltyModule(),
-                getLicensingModule(),
-                LIQUID_SPLIT_FACTORY,
-                LIQUID_SPLIT_MAIN,
-                getGovernance()
+            address impl = address(
+                new RoyaltyPolicyLAP(getRoyaltyModule(), getLicensingModule(), LIQUID_SPLIT_FACTORY, LIQUID_SPLIT_MAIN)
+            );
+            royaltyPolicyLAP = RoyaltyPolicyLAP(
+                TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(RoyaltyPolicyLAP.initialize, (getGovernance())))
             );
             console2.log("DeployHelper: Using REAL RoyaltyPolicyLAP");
 

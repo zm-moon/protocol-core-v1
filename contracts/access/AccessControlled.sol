@@ -43,7 +43,7 @@ abstract contract AccessControlled {
         _;
     }
 
-    /// @dev Constructor contract by setting the ACCESS_CONTROLLER and IP_ACCOUNT_REGISTRY addresses.
+    /// @dev Constructor
     /// @param accessController The address of the AccessController contract.
     /// @param ipAccountRegistry The address of the IPAccountRegistry contract.
     /// @custom:oz-upgrades-unsafe-allow constructor

@@ -117,6 +117,8 @@ contract LicensingModule is
         _disableInitializers();
     }
 
+    /// @notice initializer for this implementation contract
+    /// @param governance The address of the governance contract
     function initialize(address governance) public initializer {
         __ReentrancyGuard_init();
         __UUPSUpgradeable_init();

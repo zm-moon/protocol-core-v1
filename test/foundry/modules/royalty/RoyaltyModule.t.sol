@@ -5,6 +5,7 @@ pragma solidity 0.8.23;
 import { Errors } from "../../../../contracts/lib/Errors.sol";
 import { RoyaltyModule } from "../../../../contracts/modules/royalty/RoyaltyModule.sol";
 import { RoyaltyPolicyLAP } from "../../../../contracts/modules/royalty/policies/RoyaltyPolicyLAP.sol";
+import { TestProxyHelper } from "test/foundry/utils/TestProxyHelper.sol";
 
 // tests
 import { BaseTest } from "../../utils/BaseTest.t.sol";
@@ -46,12 +47,11 @@ contract TestRoyaltyModule is BaseTest {
 
         USDC.mint(ipAccount2, 1000 * 10 ** 6); // 1000 USDC
 
-        royaltyPolicyLAP2 = new RoyaltyPolicyLAP(
-            getRoyaltyModule(),
-            getLicensingModule(),
-            LIQUID_SPLIT_FACTORY,
-            LIQUID_SPLIT_MAIN,
-            getGovernance()
+        address impl = address(
+            new RoyaltyPolicyLAP(getRoyaltyModule(), getLicensingModule(), LIQUID_SPLIT_FACTORY, LIQUID_SPLIT_MAIN)
+        );
+        royaltyPolicyLAP2 = RoyaltyPolicyLAP(
+            TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(RoyaltyPolicyLAP.initialize, (getGovernance())))
         );
 
         vm.startPrank(u.admin);
@@ -122,7 +122,10 @@ contract TestRoyaltyModule is BaseTest {
     }
 
     function test_RoyaltyModule_setLicensingModule_revert_ZeroLicensingModule() public {
-        RoyaltyModule testRoyaltyModule = new RoyaltyModule(address(governance));
+        address impl = address(new RoyaltyModule());
+        RoyaltyModule testRoyaltyModule = RoyaltyModule(
+            TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(RoyaltyModule.initialize, (address(getGovernance()))))
+        );
         vm.expectRevert(Errors.RoyaltyModule__ZeroLicensingModule.selector);
         vm.prank(u.admin);
         testRoyaltyModule.setLicensingModule(address(0));
@@ -130,10 +133,12 @@ contract TestRoyaltyModule is BaseTest {
 
     function test_RoyaltyModule_setLicensingModule() public {
         vm.startPrank(u.admin);
-        RoyaltyModule testRoyaltyModule = new RoyaltyModule(address(governance));
+        address impl = address(new RoyaltyModule());
+        RoyaltyModule testRoyaltyModule = RoyaltyModule(
+            TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(RoyaltyModule.initialize, (address(getGovernance()))))
+        );
         testRoyaltyModule.setLicensingModule(address(licensingModule));
-
-        assertEq(testRoyaltyModule.LICENSING_MODULE(), address(licensingModule));
+        assertEq(testRoyaltyModule.licensingModule(), address(licensingModule));
     }
 
     function test_RoyaltyModule_whitelistRoyaltyPolicy_revert_ZeroRoyaltyToken() public {

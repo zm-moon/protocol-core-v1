@@ -47,7 +47,7 @@ abstract contract BasePolicyFrameworkManager is IPolicyFrameworkManager, ERC165,
         LICENSING_MODULE = ILicensingModule(licensing);
     }
 
-    /// @notice Initializes the BasePolicyFrameworkManager contract as per the Initializable contract.
+    /// @notice initializer for this implementation contract
     /// @param _name The name of the policy framework manager
     /// @param _licenseTextUrl The URL to the off chain legal agreement template text
     function __BasePolicyFrameworkManager_init(

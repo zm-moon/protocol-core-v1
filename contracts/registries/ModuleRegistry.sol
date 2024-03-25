@@ -38,7 +38,7 @@ contract ModuleRegistry is IModuleRegistry, GovernableUpgradeable, UUPSUpgradeab
         _disableInitializers();
     }
 
-    /// @notice Initializes the ModuleRegistry contract as per the Initializable contract.
+    /// @notice initializer for this implementation contract
     /// @param governance_ The address of the governance.
     function initialize(address governance_) public initializer {
         __GovernableUpgradeable_init(governance_);

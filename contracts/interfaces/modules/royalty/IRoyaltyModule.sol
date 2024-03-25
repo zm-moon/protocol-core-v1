@@ -31,7 +31,7 @@ interface IRoyaltyModule is IModule {
     event LicenseMintingFeePaid(address receiverIpId, address payerAddress, address token, uint256 amount);
 
     /// @notice Returns the licensing module address
-    function LICENSING_MODULE() external view returns (address);
+    function licensingModule() external view returns (address);
 
     /// @notice Indicates if a royalty policy is whitelisted
     /// @param royaltyPolicy The address of the royalty policy

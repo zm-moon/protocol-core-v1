@@ -52,7 +52,7 @@ contract AccessController is IAccessController, GovernableUpgradeable, UUPSUpgra
         _disableInitializers();
     }
 
-    /// @notice Initializes implementation contract
+    /// @notice initializer for this implementation contract
     /// @param governance The address of the governance contract
     function initialize(address governance) external initializer {
         __GovernableUpgradeable_init(governance);

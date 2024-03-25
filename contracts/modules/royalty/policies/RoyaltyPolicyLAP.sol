@@ -5,12 +5,12 @@ import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 import { ERC1155Holder } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { IAncestorsVaultLAP } from "../../../interfaces/modules/royalty/policies/IAncestorsVaultLAP.sol";
-import { Governable } from "../../../../contracts/governance/Governable.sol";
+import { GovernableUpgradeable } from "../../../../contracts/governance/GovernableUpgradeable.sol";
 import { IRoyaltyPolicyLAP } from "../../../interfaces/modules/royalty/policies/IRoyaltyPolicyLAP.sol";
 import { ArrayUtils } from "../../../lib/ArrayUtils.sol";
 import { ILiquidSplitFactory } from "../../../interfaces/modules/royalty/policies/ILiquidSplitFactory.sol";
@@ -20,7 +20,13 @@ import { Errors } from "../../../lib/Errors.sol";
 
 /// @title Liquid Absolute Percentage Royalty Policy
 /// @notice Defines the logic for splitting royalties for a given ipId using a liquid absolute percentage mechanism
-contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, ReentrancyGuard {
+contract RoyaltyPolicyLAP is
+    IRoyaltyPolicyLAP,
+    GovernableUpgradeable,
+    ERC1155Holder,
+    ReentrancyGuardUpgradeable,
+    UUPSUpgradeable
+{
     using SafeERC20 for IERC20;
 
     /// @notice The state data of the LAP royalty policy
@@ -39,6 +45,19 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
         uint32[] ancestorsRoyalties;
     }
 
+    /// @dev Storage structure for the RoyaltyPolicyLAP
+    /// @param ancestorsVaultImpl The Ancestors Vault implementation address
+    /// @param royaltyData The royalty data for a given IP asset
+    /// @custom:storage-location erc7201:story-protocol.RoyaltyPolicyLAP
+    struct RoyaltyPolicyLAPStorage {
+        address ancestorsVaultImpl;
+        mapping(address ipId => LAPRoyaltyData) royaltyData;
+    }
+
+    // keccak256(abi.encode(uint256(keccak256("story-protocol.RoyaltyPolicyLAP")) - 1)) & ~bytes32(uint256(0xff));
+    bytes32 private constant RoyaltyPolicyLAPStorageLocation =
+        0x0c915ba68e2c4e37f19454bb13066f18f9db418fcefbf3c585b4b7d0fb0e0600;
+
     /// @notice Returns the percentage scale - 1000 rnfts represents 100%
     uint32 public constant TOTAL_RNFT_SUPPLY = 1000;
 
@@ -50,22 +69,20 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
     uint256 public constant MAX_ANCESTORS = 14;
 
     /// @notice Returns the RoyaltyModule address
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable ROYALTY_MODULE;
 
     /// @notice Returns the LicensingModule address
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable LICENSING_MODULE;
 
     /// @notice Returns the 0xSplits LiquidSplitFactory address
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable LIQUID_SPLIT_FACTORY;
 
     /// @notice Returns the 0xSplits LiquidSplitMain address
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address public immutable LIQUID_SPLIT_MAIN;
-
-    /// @notice Returns the Ancestors Vault Implementation address
-    address public ANCESTORS_VAULT_IMPL;
-
-    /// @notice Returns the royalty data for a given IP asset
-    mapping(address ipId => LAPRoyaltyData) public royaltyData;
 
     /// @dev Restricts the calls to the royalty module
     modifier onlyRoyaltyModule() {
@@ -73,13 +90,13 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
         _;
     }
 
-    constructor(
-        address royaltyModule,
-        address licensingModule,
-        address liquidSplitFactory,
-        address liquidSplitMain,
-        address governance
-    ) Governable(governance) {
+    /// @notice Constructor
+    /// @param royaltyModule The RoyaltyModule address
+    /// @param licensingModule The LicensingModule address
+    /// @param liquidSplitFactory The 0xSplits LiquidSplitFactory address
+    /// @param liquidSplitMain The 0xSplits LiquidSplitMain address
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor(address royaltyModule, address licensingModule, address liquidSplitFactory, address liquidSplitMain) {
         if (royaltyModule == address(0)) revert Errors.RoyaltyPolicyLAP__ZeroRoyaltyModule();
         if (licensingModule == address(0)) revert Errors.RoyaltyPolicyLAP__ZeroLicensingModule();
         if (liquidSplitFactory == address(0)) revert Errors.RoyaltyPolicyLAP__ZeroLiquidSplitFactory();
@@ -89,18 +106,25 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
         LICENSING_MODULE = licensingModule;
         LIQUID_SPLIT_FACTORY = liquidSplitFactory;
         LIQUID_SPLIT_MAIN = liquidSplitMain;
+        _disableInitializers();
     }
 
-    receive() external payable {}
+    /// @notice initializer for this implementation contract
+    /// @param governance The governance address
+    function initialize(address governance) external initializer {
+        __GovernableUpgradeable_init(governance);
+        __ReentrancyGuard_init();
+        __UUPSUpgradeable_init();
+    }
 
     /// @dev Set the ancestors vault implementation address
     /// @dev Enforced to be only callable by the protocol admin in governance
-    /// @param ancestorsVaultImpl The ancestors vault implementation address
-    function setAncestorsVaultImplementation(address ancestorsVaultImpl) external onlyProtocolAdmin {
-        if (ancestorsVaultImpl == address(0)) revert Errors.RoyaltyPolicyLAP__ZeroAncestorsVaultImpl();
-        if (ANCESTORS_VAULT_IMPL != address(0)) revert Errors.RoyaltyPolicyLAP__ImplementationAlreadySet();
-
-        ANCESTORS_VAULT_IMPL = ancestorsVaultImpl;
+    /// @param implementation The ancestors vault implementation address
+    function setAncestorsVaultImplementation(address implementation) external onlyProtocolAdmin {
+        if (implementation == address(0)) revert Errors.RoyaltyPolicyLAP__ZeroAncestorsVaultImpl();
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+        if ($.ancestorsVaultImpl != address(0)) revert Errors.RoyaltyPolicyLAP__ImplementationAlreadySet();
+        $.ancestorsVaultImpl = implementation;
     }
 
     /// @notice Executes royalty related logic on minting a license
@@ -114,7 +138,9 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
         bytes calldata externalData
     ) external onlyRoyaltyModule {
         uint32 newLicenseRoyalty = abi.decode(licenseData, (uint32));
-        LAPRoyaltyData memory data = royaltyData[ipId];
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+
+        LAPRoyaltyData memory data = $.royaltyData[ipId];
 
         if (data.royaltyStack + newLicenseRoyalty > TOTAL_RNFT_SUPPLY)
             revert Errors.RoyaltyPolicyLAP__AboveRoyaltyStackLimit();
@@ -148,9 +174,16 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
         bytes[] memory licenseData,
         bytes calldata externalData
     ) external onlyRoyaltyModule {
-        if (royaltyData[ipId].isUnlinkableToParents) revert Errors.RoyaltyPolicyLAP__UnlinkableToParents();
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+        if ($.royaltyData[ipId].isUnlinkableToParents) revert Errors.RoyaltyPolicyLAP__UnlinkableToParents();
 
         _initPolicy(ipId, parentIpIds, licenseData);
+    }
+
+    /// @notice Returns the Ancestors Vault Implementation address
+    function ancestorsVaultImpl() external view returns (address) {
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+        return $.ancestorsVaultImpl;
     }
 
     /// @dev Initializes the royalty policy for a given IP asset.
@@ -163,6 +196,7 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
         address[] memory parentIpIds,
         bytes[] memory licenseData
     ) internal onlyRoyaltyModule {
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
         // decode license data
         uint32[] memory parentRoyalties = new uint32[](parentIpIds.length);
         for (uint256 i = 0; i < parentIpIds.length; i++) {
@@ -180,12 +214,12 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
 
         // set the parents as unlinkable / loop limited to 2 parents
         for (uint256 i = 0; i < parentIpIds.length; i++) {
-            royaltyData[parentIpIds[i]].isUnlinkableToParents = true;
+            $.royaltyData[parentIpIds[i]].isUnlinkableToParents = true;
         }
 
         // deploy ancestors vault if not root ip
         // 0xSplit requires two addresses to allow a split so for root ip address(this) is used as the second address
-        address ancestorsVault = parentIpIds.length > 0 ? Clones.clone(ANCESTORS_VAULT_IMPL) : address(this);
+        address ancestorsVault = parentIpIds.length > 0 ? Clones.clone($.ancestorsVaultImpl) : address(this);
 
         // deploy split clone
         address splitClone = _deploySplitClone(ipId, ancestorsVault, royaltyStack);
@@ -193,7 +227,7 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
         // ancestorsVault is adjusted as address(this) was just used for the split clone deployment
         ancestorsVault = ancestorsVault == address(this) ? address(0) : ancestorsVault;
 
-        royaltyData[ipId] = LAPRoyaltyData({
+        $.royaltyData[ipId] = LAPRoyaltyData({
             // whether calling via minting license or linking to parents the ipId becomes unlinkable
             isUnlinkableToParents: true,
             splitClone: splitClone,
@@ -212,7 +246,8 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
     /// @param token The token to pay
     /// @param amount The amount to pay
     function onRoyaltyPayment(address caller, address ipId, address token, uint256 amount) external onlyRoyaltyModule {
-        address destination = royaltyData[ipId].splitClone;
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+        address destination = $.royaltyData[ipId].splitClone;
         IERC20(token).safeTransferFrom(caller, destination, amount);
     }
 
@@ -230,7 +265,8 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
         address[] calldata accounts,
         address distributorAddress
     ) external {
-        ILiquidSplitClone(royaltyData[ipId].splitClone).distributeFunds(token, accounts, distributorAddress);
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+        ILiquidSplitClone($.royaltyData[ipId].splitClone).distributeFunds(token, accounts, distributorAddress);
     }
 
     /// @notice Claims the available royalties for a given address
@@ -247,7 +283,8 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
     /// @param ipId The ipId whose received funds will be distributed
     /// @param token The token to withdraw
     function claimFromIpPoolAsTotalRnftOwner(address ipId, address token) external nonReentrant {
-        ILiquidSplitClone splitClone = ILiquidSplitClone(royaltyData[ipId].splitClone);
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+        ILiquidSplitClone splitClone = ILiquidSplitClone($.royaltyData[ipId].splitClone);
         ILiquidSplitMain splitMain = ILiquidSplitMain(LIQUID_SPLIT_MAIN);
 
         if (splitClone.balanceOf(msg.sender, 0) < TOTAL_RNFT_SUPPLY) revert Errors.RoyaltyPolicyLAP__NotFullOwnership();
@@ -276,7 +313,31 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
     /// @param claimerIpId The claimer ipId is the ancestor address that wants to claim
     /// @param tokens The ERC20 tokens to withdraw
     function claimFromAncestorsVault(address ipId, address claimerIpId, ERC20[] calldata tokens) external {
-        IAncestorsVaultLAP(royaltyData[ipId].ancestorsVault).claim(ipId, claimerIpId, tokens);
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+        IAncestorsVaultLAP($.royaltyData[ipId].ancestorsVault).claim(ipId, claimerIpId, tokens);
+    }
+
+    /// @notice Returns the royalty data for a given IP asset
+    /// @param ipId The ipId to get the royalty data for
+    /// @return isUnlinkableToParents Indicates if the ipId is unlinkable to new parents
+    /// @return splitClone The address of the liquid split clone contract for a given ipId
+    /// @return ancestorsVault The address of the ancestors vault contract for a given ipId
+    /// @return royaltyStack The royalty stack of a given ipId is the sum of the royalties to be paid to each ancestors
+    /// @return ancestorsAddresses The ancestors addresses array
+    /// @return ancestorsRoyalties The ancestors royalties array
+    function getRoyaltyData(
+        address ipId
+    ) external view returns (bool, address, address, uint32, address[] memory, uint32[] memory) {
+        RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+        LAPRoyaltyData memory data = $.royaltyData[ipId];
+        return (
+            data.isUnlinkableToParents,
+            data.splitClone,
+            data.ancestorsVault,
+            data.royaltyStack,
+            data.ancestorsAddresses,
+            data.ancestorsRoyalties
+        );
     }
 
     /// @dev Gets the new ancestors data
@@ -347,9 +408,9 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
                     royaltyStack += parentRoyalties[i];
                 }
             }
-
-            address[] memory parentAncestors = royaltyData[parentIpIds[i]].ancestorsAddresses;
-            uint32[] memory parentAncestorsRoyalties = royaltyData[parentIpIds[i]].ancestorsRoyalties;
+            RoyaltyPolicyLAPStorage storage $ = _getRoyaltyPolicyLAPStorage();
+            address[] memory parentAncestors = $.royaltyData[parentIpIds[i]].ancestorsAddresses;
+            uint32[] memory parentAncestorsRoyalties = $.royaltyData[parentIpIds[i]].ancestorsRoyalties;
 
             for (uint256 j = 0; j < parentAncestors.length; j++) {
                 if (i == 0) {
@@ -405,25 +466,13 @@ contract RoyaltyPolicyLAP is IRoyaltyPolicyLAP, Governable, ERC1155Holder, Reent
         return splitClone;
     }
 
-    /// @notice Returns the royalty data for a given IP asset
-    /// @param ipId The ipId to get the royalty data for
-    /// @return isUnlinkableToParents Indicates if the ipId is unlinkable to new parents
-    /// @return splitClone The address of the liquid split clone contract for a given ipId
-    /// @return ancestorsVault The address of the ancestors vault contract for a given ipId
-    /// @return royaltyStack The royalty stack of a given ipId is the sum of the royalties to be paid to each ancestors
-    /// @return ancestorsAddresses The ancestors addresses array
-    /// @return ancestorsRoyalties The ancestors royalties array
-    function getRoyaltyData(
-        address ipId
-    ) external view returns (bool, address, address, uint32, address[] memory, uint32[] memory) {
-        LAPRoyaltyData memory data = royaltyData[ipId];
-        return (
-            data.isUnlinkableToParents,
-            data.splitClone,
-            data.ancestorsVault,
-            data.royaltyStack,
-            data.ancestorsAddresses,
-            data.ancestorsRoyalties
-        );
+    function _getRoyaltyPolicyLAPStorage() private pure returns (RoyaltyPolicyLAPStorage storage $) {
+        assembly {
+            $.slot := RoyaltyPolicyLAPStorageLocation
+        }
     }
+
+    /// @dev Hook to authorize the upgrade according to UUPSUgradeable
+    /// @param newImplementation The address of the new implementation
+    function _authorizeUpgrade(address newImplementation) internal override onlyProtocolAdmin {}
 }
