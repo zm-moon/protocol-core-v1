@@ -76,6 +76,17 @@ forge compile
 npx @openzeppelin/upgrades-core@^1.32.3 validate out/build-info 
 ```
 
+## Helper script to write an upgradeable contract with ERC7201
+
+1. Edit `script/foundry/utils/upgrades/ERC7201Helper.s.sol`
+2. Change `string constant CONTRACT_NAME = "<the contract name>";`
+3. Run the script to generate boilerplate code for storage handling and the namespace hash:
+   
+```sh
+forge script script/foundry/utils/upgrades/ERC7201Helper.s.sol 
+```
+4. The log output is the boilerplate code, copy and paste in your contract
+
 ## Testing
 
 ```
