@@ -8,7 +8,6 @@ import { ERC6551AccountLib } from "erc6551/lib/ERC6551AccountLib.sol";
 import { Errors } from "contracts/lib/Errors.sol";
 import { ArbitrationPolicySP } from "contracts/modules/dispute/policies/ArbitrationPolicySP.sol";
 import { PILPolicy } from "contracts/modules/licensing/PILPolicyFrameworkManager.sol";
-import { IP } from "contracts/lib/IP.sol";
 // test
 import { BaseTest } from "test/foundry/utils/BaseTest.t.sol";
 
@@ -26,7 +25,6 @@ contract TestArbitrationPolicySP is BaseTest {
             DeployModuleCondition({ disputeModule: true, royaltyModule: false, licensingModule: false })
         );
         buildDeployPolicyCondition(DeployPolicyCondition({ arbitrationPolicySP: true, royaltyPolicyLAP: true }));
-        buildDeployMiscCondition(DeployMiscCondition({ ipMetadataProvider: false, ipResolver: true }));
         deployConditionally();
         postDeploymentSetup();
 
@@ -69,22 +67,7 @@ contract TestArbitrationPolicySP is BaseTest {
         vm.label(expectedAddr, "IPAccount0");
 
         vm.startPrank(u.admin);
-        ipAddr = ipAssetRegistry.register(
-            block.chainid,
-            address(mockNFT),
-            0,
-            address(ipResolver),
-            true,
-            abi.encode(
-                IP.MetadataV1({
-                    name: "IPAccount0",
-                    hash: bytes32("content hash"),
-                    registrationDate: uint64(block.timestamp),
-                    registrant: u.admin,
-                    uri: "https://example.com/test-ip"
-                })
-            )
-        );
+        ipAddr = ipAssetRegistry.register(address(mockNFT), 0);
         licensingModule.addPolicyToIp(ipAddr, policyIds["pil_cheap_flexible"]);
 
         // set arbitration policy
