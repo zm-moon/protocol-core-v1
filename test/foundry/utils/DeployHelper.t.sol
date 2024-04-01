@@ -4,7 +4,9 @@ pragma solidity 0.8.23;
 
 // external
 import { console2 } from "forge-std/console2.sol"; // console to indicate mock deployment calls.
+import { Test } from "forge-std/Test.sol";
 import { ERC6551Registry } from "erc6551/ERC6551Registry.sol";
+import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
 
 // contracts
 import { AccessController } from "../../../contracts/access/AccessController.sol";
@@ -22,11 +24,11 @@ import { IPAssetRegistry } from "../../../contracts/registries/IPAssetRegistry.s
 import { ModuleRegistry } from "../../../contracts/registries/ModuleRegistry.sol";
 import { LicenseRegistry } from "../../../contracts/registries/LicenseRegistry.sol";
 import { RoyaltyModule } from "../../../contracts/modules/royalty/RoyaltyModule.sol";
-import { AncestorsVaultLAP } from "../../../contracts/modules/royalty/policies/AncestorsVaultLAP.sol";
 import { RoyaltyPolicyLAP } from "../../../contracts/modules/royalty/policies/RoyaltyPolicyLAP.sol";
 import { DisputeModule } from "../../../contracts/modules/dispute/DisputeModule.sol";
 import { LicensingModule } from "../../../contracts/modules/licensing/LicensingModule.sol";
 import { ArbitrationPolicySP } from "../../../contracts/modules/dispute/policies/ArbitrationPolicySP.sol";
+import { IpRoyaltyVault } from "../../../contracts/modules/royalty/policies/IpRoyaltyVault.sol";
 
 // test
 import { MockAccessController } from "../mocks/access/MockAccessController.sol";
@@ -41,7 +43,7 @@ import { MockERC20 } from "../mocks/token/MockERC20.sol";
 import { MockERC721 } from "../mocks/token/MockERC721.sol";
 import { TestProxyHelper } from "./TestProxyHelper.sol";
 
-contract DeployHelper {
+contract DeployHelper is Test {
     // TODO: three options, auto/mock/real in deploy condition, so that we don't need to manually
     //       call getXXX to get mock contract (if there's no real contract deployed).
 
@@ -111,12 +113,7 @@ contract DeployHelper {
 
     // Policy
     ArbitrationPolicySP internal arbitrationPolicySP;
-    AncestorsVaultLAP internal ancestorsVaultImpl;
     RoyaltyPolicyLAP internal royaltyPolicyLAP;
-
-    // Royalty Policy — 0xSplits Liquid Split (Sepolia)
-    address internal constant LIQUID_SPLIT_FACTORY = 0xF678Bae6091Ab6933425FE26Afc20Ee5F324c4aE;
-    address internal constant LIQUID_SPLIT_MAIN = 0x57CBFA83f000a38C5b5881743E298819c503A559;
 
     // Arbitration Policy
     // TODO: custom arbitration price for testing
@@ -294,16 +291,19 @@ contract DeployHelper {
             console2.log("DeployHelper: Using Mock ArbitrationPolicySP");
         }
         if (d.royaltyPolicyLAP) {
-            address impl = address(
-                new RoyaltyPolicyLAP(getRoyaltyModule(), getLicensingModule(), LIQUID_SPLIT_FACTORY, LIQUID_SPLIT_MAIN)
-            );
+            address impl = address(new RoyaltyPolicyLAP(getRoyaltyModule(), getLicensingModule()));
             royaltyPolicyLAP = RoyaltyPolicyLAP(
                 TestProxyHelper.deployUUPSProxy(impl, abi.encodeCall(RoyaltyPolicyLAP.initialize, (getGovernance())))
             );
             console2.log("DeployHelper: Using REAL RoyaltyPolicyLAP");
 
-            ancestorsVaultImpl = new AncestorsVaultLAP(address(royaltyPolicyLAP));
-            console2.log("DeployHelper: Using REAL AncestorsVaultLAP");
+            // deploy ip royalty vault implementation and beacon
+            vm.startPrank(governanceAdmin);
+            address ipRoyaltyVaultImplementation = address(new IpRoyaltyVault(address(royaltyPolicyLAP)));
+            address ipRoyaltyVaultBeacon = address(
+                new UpgradeableBeacon(ipRoyaltyVaultImplementation, getGovernance())
+            );
+            royaltyPolicyLAP.setIpRoyaltyVaultBeacon(ipRoyaltyVaultBeacon);
         } else {
             // mockRoyaltyPolicyLAP = new MockRoyaltyPolicyLAP(getRoyaltyModule());
             // console2.log("DeployHelper: Using Mock RoyaltyPolicyLAP");

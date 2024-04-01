@@ -52,9 +52,6 @@ contract BaseTest is Test, DeployHelper, LicensingHelper {
         bob = u.bob;
         carl = u.carl;
         dan = u.dan;
-
-        vm.label(LIQUID_SPLIT_FACTORY, "LIQUID_SPLIT_FACTORY");
-        vm.label(LIQUID_SPLIT_MAIN, "LIQUID_SPLIT_MAIN");
     }
 
     function postDeploymentSetup() public {
@@ -197,10 +194,6 @@ contract BaseTest is Test, DeployHelper, LicensingHelper {
     function configureRoyaltyPolicyLAP() public {
         console2.log("BaseTest PostDeploymentSetup: Configure Royalty Policy LAP");
         require(address(royaltyPolicyLAP) != address(0), "royaltyPolicyLAP not set");
-
-        vm.startPrank(u.admin);
-        royaltyPolicyLAP.setAncestorsVaultImplementation(address(ancestorsVaultImpl));
-        vm.stopPrank();
     }
 
     function _getIpId(MockERC721 mnft, uint256 tokenId) internal view returns (address ipId) {

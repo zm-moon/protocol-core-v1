@@ -238,12 +238,14 @@ library Errors {
     error RoyaltyPolicyLAP__NotFullOwnership();
     error RoyaltyPolicyLAP__UnlinkableToParents();
     error RoyaltyPolicyLAP__LastPositionNotAbleToMintLicense();
+    error RoyaltyPolicyLAP__ZeroIpRoyaltyVaultBeacon();
 
-    error AncestorsVaultLAP__ZeroRoyaltyPolicyLAP();
-    error AncestorsVaultLAP__AlreadyClaimed();
-    error AncestorsVaultLAP__InvalidVault();
-    error AncestorsVaultLAP__ClaimerNotAnAncestor();
-    error AncestorsVaultLAP__ERC20BalanceNotZero();
+    error IpRoyaltyVault__ZeroIpId();
+    error IpRoyaltyVault__ZeroRoyaltyPolicyLAP();
+    error IpRoyaltyVault__NotRoyaltyPolicyLAP();
+    error IpRoyaltyVault__SnapshotIntervalTooShort();
+    error IpRoyaltyVault__AlreadyClaimed();
+    error IpRoyaltyVault__ClaimerNotAnAncestor();
 
     ////////////////////////////////////////////////////////////////////////////
     //                             ModuleRegistry                             //

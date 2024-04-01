@@ -32,6 +32,9 @@ contract BaseIntegration is BaseTest {
         postDeploymentSetup();
 
         dealMockAssets();
+
+        vm.prank(u.admin);
+        royaltyPolicyLAP.setSnapshotInterval(7 days);
     }
 
     /*//////////////////////////////////////////////////////////////////////////
