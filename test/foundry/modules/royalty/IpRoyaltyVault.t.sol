@@ -11,6 +11,7 @@ import { BaseTest } from "../../utils/BaseTest.t.sol";
 contract TestIpRoyaltyVault is BaseTest {
     event RoyaltyTokensCollected(address ancestorIpId, uint256 royaltyTokensCollected);
     event SnapshotCompleted(uint256 snapshotId, uint256 timestamp, uint32 unclaimedTokens);
+    event RevenueTokensClaimed(address claimer, address token, uint256 amount);
 
     IpRoyaltyVault ipRoyaltyVault;
 
@@ -206,9 +207,14 @@ contract TestIpRoyaltyVault is BaseTest {
         uint256 linkClaimVaultBefore = ipRoyaltyVault.claimVaultAmount(address(LINK));
 
         vm.startPrank(address(2));
-        ipRoyaltyVault.claimRevenueByTokenBatch(1, tokens);
 
         uint256 expectedAmount = royaltyAmount - (royaltyAmount * royaltyStack2) / royaltyPolicyLAP.TOTAL_RT_SUPPLY();
+
+        vm.expectEmit(true, true, true, true, address(ipRoyaltyVault));
+        emit RevenueTokensClaimed(address(2), address(USDC), expectedAmount);
+        emit RevenueTokensClaimed(address(2), address(LINK), expectedAmount);
+
+        ipRoyaltyVault.claimRevenueByTokenBatch(1, tokens);
 
         assertEq(USDC.balanceOf(address(2)) - userUsdcBalanceBefore, expectedAmount);
         assertEq(LINK.balanceOf(address(2)) - userLinkBalanceBefore, expectedAmount);
@@ -251,10 +257,13 @@ contract TestIpRoyaltyVault is BaseTest {
         uint256 contractUsdcBalanceBefore = USDC.balanceOf(address(ipRoyaltyVault));
         uint256 usdcClaimVaultBefore = ipRoyaltyVault.claimVaultAmount(address(USDC));
 
+        uint256 expectedAmount = royaltyAmount - (royaltyAmount * royaltyStack2) / royaltyPolicyLAP.TOTAL_RT_SUPPLY();
+        
+        vm.expectEmit(true, true, true, true, address(ipRoyaltyVault));
+        emit RevenueTokensClaimed(address(2), address(USDC), expectedAmount);
+
         vm.startPrank(address(2));
         ipRoyaltyVault.claimRevenueBySnapshotBatch(snapshots, address(USDC));
-
-        uint256 expectedAmount = royaltyAmount - (royaltyAmount * royaltyStack2) / royaltyPolicyLAP.TOTAL_RT_SUPPLY();
 
         assertEq(USDC.balanceOf(address(2)) - userUsdcBalanceBefore, expectedAmount);
         assertEq(contractUsdcBalanceBefore - USDC.balanceOf(address(ipRoyaltyVault)), expectedAmount);
@@ -390,6 +399,7 @@ contract TestIpRoyaltyVault is BaseTest {
 
         vm.expectEmit(true, true, true, true, address(ipRoyaltyVault));
         emit RoyaltyTokensCollected(address(5), parentRoyalty);
+        emit RevenueTokensClaimed(address(5), address(USDC), accruedCollectableRevenue);
 
         ipRoyaltyVault.collectRoyaltyTokens(address(5));
 
