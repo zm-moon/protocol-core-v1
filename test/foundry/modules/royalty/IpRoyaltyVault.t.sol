@@ -4,13 +4,13 @@ pragma solidity 0.8.23;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { IpRoyaltyVault } from "../../../../contracts/modules/royalty/policies/IpRoyaltyVault.sol";
+import { IIpRoyaltyVault } from "../../../../contracts/interfaces/modules/royalty/policies/IIpRoyaltyVault.sol";
+
 import { Errors } from "../../../../contracts/lib/Errors.sol";
 
 import { BaseTest } from "../../utils/BaseTest.t.sol";
 
 contract TestIpRoyaltyVault is BaseTest {
-    event RoyaltyTokensCollected(address ancestorIpId, uint256 royaltyTokensCollected);
-    event SnapshotCompleted(uint256 snapshotId, uint256 timestamp, uint32 unclaimedTokens);
 
     IpRoyaltyVault ipRoyaltyVault;
 
@@ -206,9 +206,14 @@ contract TestIpRoyaltyVault is BaseTest {
         uint256 linkClaimVaultBefore = ipRoyaltyVault.claimVaultAmount(address(LINK));
 
         vm.startPrank(address(2));
-        ipRoyaltyVault.claimRevenueByTokenBatch(1, tokens);
 
         uint256 expectedAmount = royaltyAmount - (royaltyAmount * royaltyStack2) / royaltyPolicyLAP.TOTAL_RT_SUPPLY();
+
+        vm.expectEmit(true, true, true, true, address(ipRoyaltyVault));
+        emit IIpRoyaltyVault.RevenueTokenClaimed(address(2), address(USDC), expectedAmount);
+        emit IIpRoyaltyVault.RevenueTokenClaimed(address(2), address(LINK), expectedAmount);
+
+        ipRoyaltyVault.claimRevenueByTokenBatch(1, tokens);
 
         assertEq(USDC.balanceOf(address(2)) - userUsdcBalanceBefore, expectedAmount);
         assertEq(LINK.balanceOf(address(2)) - userLinkBalanceBefore, expectedAmount);
@@ -251,10 +256,13 @@ contract TestIpRoyaltyVault is BaseTest {
         uint256 contractUsdcBalanceBefore = USDC.balanceOf(address(ipRoyaltyVault));
         uint256 usdcClaimVaultBefore = ipRoyaltyVault.claimVaultAmount(address(USDC));
 
+        uint256 expectedAmount = royaltyAmount - (royaltyAmount * royaltyStack2) / royaltyPolicyLAP.TOTAL_RT_SUPPLY();
+        
+        vm.expectEmit(true, true, true, true, address(ipRoyaltyVault));
+        emit IIpRoyaltyVault.RevenueTokenClaimed(address(2), address(USDC), expectedAmount);
+
         vm.startPrank(address(2));
         ipRoyaltyVault.claimRevenueBySnapshotBatch(snapshots, address(USDC));
-
-        uint256 expectedAmount = royaltyAmount - (royaltyAmount * royaltyStack2) / royaltyPolicyLAP.TOTAL_RT_SUPPLY();
 
         assertEq(USDC.balanceOf(address(2)) - userUsdcBalanceBefore, expectedAmount);
         assertEq(contractUsdcBalanceBefore - USDC.balanceOf(address(ipRoyaltyVault)), expectedAmount);
@@ -291,7 +299,7 @@ contract TestIpRoyaltyVault is BaseTest {
         (, , uint32 royaltyStack2, , ) = royaltyPolicyLAP.getRoyaltyData(address(2));
 
         vm.expectEmit(true, true, true, true, address(ipRoyaltyVault));
-        emit SnapshotCompleted(1, block.timestamp, royaltyStack2);
+        emit IIpRoyaltyVault.SnapshotCompleted(1, block.timestamp, royaltyStack2);
 
         ipRoyaltyVault.snapshot();
 
@@ -389,7 +397,8 @@ contract TestIpRoyaltyVault is BaseTest {
         uint256 ancestorsVaultAmountBefore = ipRoyaltyVault.ancestorsVaultAmount(address(USDC));
 
         vm.expectEmit(true, true, true, true, address(ipRoyaltyVault));
-        emit RoyaltyTokensCollected(address(5), parentRoyalty);
+        emit IIpRoyaltyVault.RoyaltyTokensCollected(address(5), parentRoyalty);
+        emit IIpRoyaltyVault.RevenueTokenClaimed(address(5), address(USDC), accruedCollectableRevenue);
 
         ipRoyaltyVault.collectRoyaltyTokens(address(5));
 
