@@ -159,7 +159,7 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20SnapshotUpgradeable, Reentrancy
             claimVaultAmount[tokens[i]] -= claimableToken;
             IERC20Upgradeable(tokens[i]).safeTransfer(msg.sender, claimableToken);
 
-            emit RevenueTokensClaimed(msg.sender, tokens[i], claimableToken);
+            emit RevenueTokenClaimed(msg.sender, tokens[i], claimableToken);
         }
     }
 
@@ -176,7 +176,7 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20SnapshotUpgradeable, Reentrancy
         claimVaultAmount[token] -= claimableToken;
         IERC20Upgradeable(token).safeTransfer(msg.sender, claimableToken);
 
-        emit RevenueTokensClaimed(msg.sender, token, claimableToken);
+        emit RevenueTokenClaimed(msg.sender, token, claimableToken);
     }
 
     /// @notice Allows ancestors to claim the royalty tokens and any accrued revenue tokens
@@ -237,7 +237,7 @@ contract IpRoyaltyVault is IIpRoyaltyVault, ERC20SnapshotUpgradeable, Reentrancy
             ancestorsVaultAmount[tokens[i]] -= collectAmount;
             IERC20Upgradeable(tokens[i]).safeTransfer(ancestorIpId, collectAmount);
 
-            emit RevenueTokensClaimed(ancestorIpId, tokens[i], collectAmount);
+            emit RevenueTokenClaimed(ancestorIpId, tokens[i], collectAmount);
         }
     }
 }
