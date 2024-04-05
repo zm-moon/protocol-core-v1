@@ -11,6 +11,8 @@ contract MockRoyaltyModule is BaseModule, IRoyaltyModule {
 
     address public LICENSING_MODULE;
 
+    address public DISPUTE_MODULE;
+
     mapping(address royaltyPolicy => bool allowed) public isWhitelistedRoyaltyPolicy;
 
     mapping(address token => bool) public isWhitelistedRoyaltyToken;
@@ -19,12 +21,20 @@ contract MockRoyaltyModule is BaseModule, IRoyaltyModule {
 
     constructor() {}
 
+    function setDisputeModule(address _disputeModule) external {
+        DISPUTE_MODULE = _disputeModule;
+    }
+
     function setLicensingModule(address _licensingModule) external {
         LICENSING_MODULE = _licensingModule;
     }
 
     function licensingModule() external view override returns (address) {
         return LICENSING_MODULE;
+    }
+
+    function disputeModule() external view override returns (address) {
+        return DISPUTE_MODULE;
     }
 
     function whitelistRoyaltyPolicy(address _royaltyPolicy, bool _allowed) external {
