@@ -21,19 +21,22 @@ import { AccessPermission } from "contracts/lib/AccessPermission.sol";
 import { Errors } from "contracts/lib/Errors.sol";
 import { PILFlavors } from "contracts/lib/PILFlavors.sol";
 // solhint-disable-next-line max-line-length
-import { DISPUTE_MODULE_KEY, ROYALTY_MODULE_KEY, LICENSING_MODULE_KEY, TOKEN_WITHDRAWAL_MODULE_KEY } from "contracts/lib/modules/Module.sol";
+import { DISPUTE_MODULE_KEY, ROYALTY_MODULE_KEY, LICENSING_MODULE_KEY, TOKEN_WITHDRAWAL_MODULE_KEY, CORE_METADATA_MODULE_KEY, CORE_METADATA_VIEW_MODULE_KEY } from "contracts/lib/modules/Module.sol";
 import { IPAccountRegistry } from "contracts/registries/IPAccountRegistry.sol";
 import { IPAssetRegistry } from "contracts/registries/IPAssetRegistry.sol";
 import { ModuleRegistry } from "contracts/registries/ModuleRegistry.sol";
 import { LicenseRegistry } from "contracts/registries/LicenseRegistry.sol";
+import {LicenseToken} from "contracts/LicenseToken.sol";
 import { LicensingModule } from "contracts/modules/licensing/LicensingModule.sol";
 import { RoyaltyModule } from "contracts/modules/royalty/RoyaltyModule.sol";
+import { CoreMetadataModule } from "contracts/modules/metadata/CoreMetadataModule.sol";
+import { CoreMetadataViewModule } from "contracts/modules/metadata/CoreMetadataViewModule.sol";
 import { RoyaltyPolicyLAP } from "contracts/modules/royalty/policies/RoyaltyPolicyLAP.sol";
 import { DisputeModule } from "contracts/modules/dispute/DisputeModule.sol";
 import { ArbitrationPolicySP } from "contracts/modules/dispute/policies/ArbitrationPolicySP.sol";
 import { TokenWithdrawalModule } from "contracts/modules/external/TokenWithdrawalModule.sol";
 // solhint-disable-next-line max-line-length
-import { PILPolicyFrameworkManager, PILPolicy, RegisterPILPolicyParams } from "contracts/modules/licensing/PILPolicyFrameworkManager.sol";
+import { PILicenseTemplate, PILTerms} from "contracts/modules/licensing/PILicenseTemplate.sol";
 import { MODULE_TYPE_HOOK } from "contracts/lib/modules/Module.sol";
 import { IModule } from "contracts/interfaces/modules/base/IModule.sol";
 import { IHookModule } from "contracts/interfaces/modules/base/IHookModule.sol";
@@ -60,9 +63,12 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
     IPAccountRegistry internal ipAccountRegistry;
     IPAssetRegistry internal ipAssetRegistry;
     LicenseRegistry internal licenseRegistry;
+    LicenseToken internal licenseToken;
     ModuleRegistry internal moduleRegistry;
 
     // Core Module
+    CoreMetadataModule internal coreMetadataModule;
+    CoreMetadataViewModule internal coreMetadataViewModule;
     LicensingModule internal licensingModule;
     DisputeModule internal disputeModule;
     RoyaltyModule internal royaltyModule;
@@ -73,7 +79,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
     // Policy
     ArbitrationPolicySP internal arbitrationPolicySP;
     RoyaltyPolicyLAP internal royaltyPolicyLAP;
-    PILPolicyFrameworkManager internal pilPfm;
+    PILicenseTemplate internal piLt;
 
     // Misc.
     Governance internal governance;
@@ -90,7 +96,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
     mapping(string policyName => uint256 policyId) internal policyIds;
 
-    mapping(string frameworkName => address frameworkAddr) internal frameworkAddrs;
+    mapping(string frameworkName => address frameworkAddr) internal templateAddrs;
 
     uint256 internal constant ARBITRATION_PRICE = 1000 * 10 ** 6; // 1000 MockToken
     uint256 internal constant MAX_ROYALTY_APPROVAL = 10000 ether;
@@ -211,6 +217,23 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
                 abi.encodeCall(
                     LicenseRegistry.initialize,
                     (
+                        address(governance)
+                    )
+                )
+            )
+        );
+        impl = address(0); // Make sure we don't deploy wrong impl
+        _postdeploy(contractKey, address(licenseRegistry));
+
+        contractKey = "LicenseToken";
+        _predeploy(contractKey);
+        impl = address(new LicenseToken());
+        licenseToken = LicenseToken(
+            TestProxyHelper.deployUUPSProxy(
+                impl,
+                abi.encodeCall(
+                    LicenseToken.initialize,
+                    (
                         address(governance),
                         "https://github.com/storyprotocol/protocol-core/blob/main/assets/license-image.gif"
                     )
@@ -218,7 +241,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
             )
         );
         impl = address(0); // Make sure we don't deploy wrong impl
-        _postdeploy(contractKey, address(licenseRegistry));
+        _postdeploy(contractKey, address(licenseToken));
 
         contractKey = "LicensingModule";
         _predeploy(contractKey);
@@ -229,7 +252,8 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
                 address(ipAccountRegistry),
                 address(royaltyModule),
                 address(licenseRegistry),
-                address(disputeModule)
+                address(disputeModule),
+                address(licenseToken)
             )
         );
         licensingModule = LicensingModule(
@@ -242,6 +266,17 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
         _predeploy(contractKey);
         tokenWithdrawalModule = new TokenWithdrawalModule(address(accessController), address(ipAccountRegistry));
         _postdeploy(contractKey, address(tokenWithdrawalModule));
+
+        contractKey = "CoreMetadataModule";
+        _predeploy(contractKey);
+        coreMetadataModule = new CoreMetadataModule(address(accessController), address(ipAccountRegistry));
+        _postdeploy(contractKey, address(coreMetadataModule));
+
+        contractKey = "CoreMetadataViewModule";
+        _predeploy(contractKey);
+        coreMetadataViewModule = new CoreMetadataViewModule(address(ipAssetRegistry), address(moduleRegistry));
+        _postdeploy(contractKey, address(coreMetadataModule));
+
 
         //
         // Story-specific Contracts
@@ -266,25 +301,27 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
         impl = address(0);
         _postdeploy(contractKey, address(royaltyPolicyLAP));
 
-        _predeploy("PILPolicyFrameworkManager");
+        _predeploy("PILicenseTemplate");
         impl = address(
-            new PILPolicyFrameworkManager(
+            new PILicenseTemplate(
                 address(accessController),
                 address(ipAccountRegistry),
-                address(licensingModule)
+                address(licenseRegistry),
+                address(royaltyModule),
+                address(licenseToken)
             )
         );
-        pilPfm = PILPolicyFrameworkManager(
+        piLt = PILicenseTemplate(
             TestProxyHelper.deployUUPSProxy(
                 impl,
                 abi.encodeCall(
-                    PILPolicyFrameworkManager.initialize,
+                    PILicenseTemplate.initialize,
                     ("pil", "https://github.com/storyprotocol/protocol-core/blob/main/PIL-Beta-2024-02.pdf")
                 )
             )
         );
         impl = address(0); // Make sure we don't deploy wrong impl
-        _postdeploy("PILPolicyFrameworkManager", address(pilPfm));
+        _postdeploy("PILicenseTemplate", address(piLt));
 
         //
         // Mock Hooks
@@ -312,6 +349,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
         _configureRoyaltyRelated();
         _configureDisputeModule();
         _executeInteractions();
+        coreMetadataViewModule.updateCoreMetadataModule();
     }
 
     function _configureMisc() private {
@@ -321,20 +359,6 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
     function _configureAccessController() private {
         accessController.setAddresses(address(ipAccountRegistry), address(moduleRegistry));
-
-        accessController.setGlobalPermission(
-            address(ipAssetRegistry),
-            address(licensingModule),
-            bytes4(licensingModule.linkIpToParents.selector),
-            AccessPermission.ALLOW
-        );
-
-        accessController.setGlobalPermission(
-            address(ipAssetRegistry),
-            address(licensingModule),
-            bytes4(licensingModule.addPolicyToIp.selector),
-            AccessPermission.ALLOW
-        );
     }
 
     function _configureModuleRegistry() private {
@@ -342,6 +366,9 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
         moduleRegistry.registerModule(LICENSING_MODULE_KEY, address(licensingModule));
         moduleRegistry.registerModule(ROYALTY_MODULE_KEY, address(royaltyModule));
         moduleRegistry.registerModule(TOKEN_WITHDRAWAL_MODULE_KEY, address(tokenWithdrawalModule));
+        moduleRegistry.registerModule(CORE_METADATA_MODULE_KEY, address(coreMetadataModule));
+        moduleRegistry.registerModule(CORE_METADATA_VIEW_MODULE_KEY, address(coreMetadataViewModule));
+
     }
 
     function _configureRoyaltyRelated() private {
@@ -380,8 +407,8 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
         // For license/royalty payment, on both minting license and royalty distribution
         erc20.approve(address(royaltyPolicyLAP), MAX_ROYALTY_APPROVAL);
 
-        licensingModule.registerPolicyFrameworkManager(address(pilPfm));
-        frameworkAddrs["pil"] = address(pilPfm);
+        licenseRegistry.registerLicenseTemplate(address(piLt));
+        templateAddrs["pil"] = address(piLt);
 
         accessController.setGlobalPermission(
             address(ipAssetRegistry),
@@ -409,55 +436,49 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
         ///////////////////////////////////////////////////////////////*/
 
         // Policy ID 1
-        policyIds["social_remixing"] = pilPfm.registerPolicy(PILFlavors.nonCommercialSocialRemixing());
+        policyIds["social_remixing"] = piLt.registerLicenseTerms(PILFlavors.nonCommercialSocialRemixing());
 
         // Policy ID 2
-        policyIds["pil_com_deriv_expensive"] = pilPfm.registerPolicy(
-            RegisterPILPolicyParams({
+        policyIds["pil_com_deriv_expensive"] = piLt.registerLicenseTerms(
+            PILTerms({
                 transferable: true,
                 royaltyPolicy: address(royaltyPolicyLAP),
                 mintingFee: 1 ether,
-                mintingFeeToken: address(erc20),
-                policy: PILPolicy({
-                    attribution: true,
-                    commercialUse: true,
-                    commercialAttribution: true,
-                    commercializerChecker: address(mockTokenGatedHook),
-                    commercializerCheckerData: abi.encode(address(erc721)), // use `erc721` as gated token
-                    commercialRevShare: 100,
-                    derivativesAllowed: true,
-                    derivativesAttribution: false,
-                    derivativesApproval: false,
-                    derivativesReciprocal: true,
-                    territories: new string[](0),
-                    distributionChannels: new string[](0),
-                    contentRestrictions: new string[](0)
-                })
+                expiration: 0,
+                commercialUse: true,
+                commercialAttribution: true,
+                commercializerChecker: address(mockTokenGatedHook),
+                commercializerCheckerData: abi.encode(address(erc721)), // use `erc721` as gated token
+                commercialRevShare: 100,
+                commercialRevCelling: 0,
+                derivativesAllowed: true,
+                derivativesAttribution: false,
+                derivativesApproval: false,
+                derivativesReciprocal: true,
+                derivativeRevCelling: 0,
+                currency: address(erc20)
             })
         );
 
         // Policy ID 3
-        policyIds["pil_noncom_deriv_reciprocal"] = pilPfm.registerPolicy(
-            RegisterPILPolicyParams({
+        policyIds["pil_noncom_deriv_reciprocal"] = piLt.registerLicenseTerms(
+            PILTerms({
                 transferable: false,
-                royaltyPolicy: address(0), // no royalty, non-commercial
-                mintingFee: 0, // no minting fee, non-commercial
-                mintingFeeToken: address(0), // no minting fee token, non-commercial
-                policy: PILPolicy({
-                    attribution: true,
-                    commercialUse: false,
-                    commercialAttribution: false,
-                    commercializerChecker: address(0),
-                    commercializerCheckerData: "",
-                    commercialRevShare: 0,
-                    derivativesAllowed: true,
-                    derivativesAttribution: true,
-                    derivativesApproval: false,
-                    derivativesReciprocal: true,
-                    territories: new string[](0),
-                    distributionChannels: new string[](0),
-                    contentRestrictions: new string[](0)
-                })
+                royaltyPolicy: address(0),
+                mintingFee: 0,
+                expiration: 0,
+                commercialUse: false,
+                commercialAttribution: false,
+                commercializerChecker: address(0),
+                commercializerCheckerData: "",
+                commercialRevShare: 0,
+                commercialRevCelling: 0,
+                derivativesAllowed: true,
+                derivativesAttribution: true,
+                derivativesApproval: false,
+                derivativesReciprocal: true,
+                derivativeRevCelling: 0,
+                currency: address(0)
             })
         );
 
@@ -473,7 +494,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
         // IPAccount2 (tokenId 2) and attach policy "pil_noncom_deriv_reciprocal"
         vm.label(getIpId(erc721, 2), "IPAccount2");
         ipAcct[2] = ipAssetRegistry.register(address(erc721), 2);
-        licensingModule.addPolicyToIp(ipAcct[2], policyIds["pil_noncom_deriv_reciprocal"]);
+        licensingModule.attachLicenseTerms(ipAcct[2], address(piLt), policyIds["pil_noncom_deriv_reciprocal"]);
 
         // wildcard allow
         IIPAccount(payable(ipAcct[1])).execute(
@@ -494,7 +515,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
         ///////////////////////////////////////////////////////////////*/
 
         // Add "pil_com_deriv_expensive" policy to IPAccount1
-        licensingModule.addPolicyToIp(ipAcct[1], policyIds["pil_com_deriv_expensive"]);
+        licensingModule.attachLicenseTerms(ipAcct[1], address(piLt), policyIds["pil_com_deriv_expensive"]);
 
         /*///////////////////////////////////////////////////////////////
                     LINK IPACCOUNTS TO PARENTS USING LICENSES
@@ -504,9 +525,10 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
         // Register derivative IP for NFT tokenId 3
         {
             uint256[] memory licenseIds = new uint256[](1);
-            licenseIds[0] = licensingModule.mintLicense(
-                policyIds["pil_com_deriv_expensive"],
+            licenseIds[0] = licensingModule.mintLicenseTokens(
                 ipAcct[1],
+                address(piLt),
+                policyIds["pil_com_deriv_expensive"],
                 2,
                 deployer,
                 ""
@@ -516,16 +538,17 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
             vm.label(ipAcct[3], "IPAccount3");
 
             address ipId = ipAssetRegistry.register(address(erc721), 3);
-            licensingModule.linkIpToParents(licenseIds, ipId, "");
+            licensingModule.registerDerivativeWithLicenseTokens(ipId, licenseIds, "");
         }
 
         // Mint 1 license of policy "pil_noncom_deriv_reciprocal" on IPAccount2
         // Register derivative IP for NFT tokenId 4
         {
             uint256[] memory licenseIds = new uint256[](1);
-            licenseIds[0] = licensingModule.mintLicense(
-                policyIds["pil_noncom_deriv_reciprocal"],
+            licenseIds[0] = licensingModule.mintLicenseTokens(
                 ipAcct[2],
+                address(piLt),
+                policyIds["pil_noncom_deriv_reciprocal"],
                 1,
                 deployer,
                 ""
@@ -536,7 +559,7 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
 
             ipAcct[4] = ipAssetRegistry.register(address(erc721), 4);
 
-            licensingModule.linkIpToParents(licenseIds, ipAcct[4], "");
+            licensingModule.registerDerivativeWithLicenseTokens(ipAcct[4], licenseIds, "");
         }
 
         // Multi-parent
@@ -545,24 +568,26 @@ contract Main is Script, BroadcastManager, JsonDeploymentHandler, StorageLayoutC
             vm.label(ipAcct[5], "IPAccount5");
 
             uint256[] memory licenseIds = new uint256[](2);
-            licenseIds[0] = licensingModule.mintLicense(
-                policyIds["pil_com_deriv_expensive"],
+            licenseIds[0] = licensingModule.mintLicenseTokens(
                 ipAcct[1],
+                address(piLt),
+                policyIds["pil_com_deriv_expensive"],
                 1,
                 deployer,
                 ""
             );
 
-            licenseIds[1] = licensingModule.mintLicense(
-                policyIds["pil_com_deriv_expensive"],
+            licenseIds[1] = licensingModule.mintLicenseTokens(
                 ipAcct[3], // is child of ipAcct[1]
+                address(piLt),
+                policyIds["pil_com_deriv_expensive"],
                 1,
                 deployer,
                 ""
             );
 
             address ipId = ipAssetRegistry.register(address(erc721), 5);
-            licensingModule.linkIpToParents(licenseIds, ipId, "");
+            licensingModule.registerDerivativeWithLicenseTokens(ipId, licenseIds, "");
         }
 
         /*///////////////////////////////////////////////////////////////
