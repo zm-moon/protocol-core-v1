@@ -14,10 +14,12 @@ contract IPAccountTest is BaseTest {
 
     function setUp() public override {
         super.setUp();
-        deployConditionally();
-        postDeploymentSetup();
 
         module = new MockModule(address(ipAssetRegistry), address(moduleRegistry), "MockModule");
+
+        vm.startPrank(u.admin); // used twice, name() and registerModule()
+        moduleRegistry.registerModule(module.name(), address(module));
+        vm.stopPrank();
     }
 
     function test_IPAccount_Idempotency() public {
