@@ -92,24 +92,6 @@ contract AccessController is IAccessController, AccessManagedUpgradeable, UUPSUp
         }
     }
 
-    /// @notice Sets the permission for all IPAccounts
-    /// @dev Enforced to be only callable by the protocol admin in governance.
-    /// @param signer The address that can call `to` on behalf of the IP account
-    /// @param to The address that can be called by the `signer` (currently only modules can be `to`)
-    /// @param func The function selector of `to` that can be called by the `signer` on behalf of the `ipAccount`
-    /// @param permission The new permission level
-    function setGlobalPermission(address signer, address to, bytes4 func, uint8 permission) external restricted {
-        if (signer == address(0)) {
-            revert Errors.AccessController__SignerIsZeroAddress();
-        }
-        // permission must be one of ABSTAIN, ALLOW, DENY
-        if (permission > 2) {
-            revert Errors.AccessController__PermissionIsNotValid();
-        }
-        _setPermission(address(0), signer, to, func, permission);
-        emit PermissionSet(address(0), address(0), signer, to, func, permission);
-    }
-
     /// @notice Sets the permission for a specific function call
     /// @dev Each policy is represented as a mapping from an IP account address to a signer address to a recipient
     /// address to a function selector to a permission level. The permission level can be 0 (ABSTAIN), 1 (ALLOW), or
@@ -141,8 +123,8 @@ contract AccessController is IAccessController, AccessManagedUpgradeable, UUPSUp
         if (permission > 2) {
             revert Errors.AccessController__PermissionIsNotValid();
         }
-        if (!IModuleRegistry($.moduleRegistry).isRegistered(msg.sender) && ipAccount != msg.sender) {
-            revert Errors.AccessController__CallerIsNotIPAccount();
+        if (ipAccount != msg.sender && IIPAccount(payable(ipAccount)).owner() != msg.sender) {
+            revert Errors.AccessController__CallerIsNotIPAccountOrOwner();
         }
         _setPermission(ipAccount, signer, to, func, permission);
 
@@ -160,10 +142,19 @@ contract AccessController is IAccessController, AccessManagedUpgradeable, UUPSUp
     /// @param func The function selector of `to` that can be called by the `signer` on behalf of the `ipAccount`
     // solhint-disable code-complexity
     function checkPermission(address ipAccount, address signer, address to, bytes4 func) external view {
-        // The ipAccount is restricted to interact exclusively with registered modules.
-        // This includes initiating calls to these modules and receiving calls from them.
-        // Additionally, it can modify Permissions settings.
         AccessControllerStorage storage $ = _getAccessControllerStorage();
+        // Must be a valid IPAccount
+        if (!IIPAccountRegistry($.ipAccountRegistry).isIpAccount(ipAccount)) {
+            revert Errors.AccessController__IPAccountIsNotValid(ipAccount);
+        }
+        // Owner can call any contracts either registered module or unregistered/external contracts
+        if (IIPAccount(payable(ipAccount)).owner() == signer) {
+            return;
+        }
+
+        // If the caller (signer) is not the Owner, IPAccount is limited to interactions with only registered modules.
+        // These interactions can be either initiating calls to these modules or receiving calls from them.
+        // The IP account can also modify its own Permissions settings.
         if (
             to != address(this) &&
             !IModuleRegistry($.moduleRegistry).isRegistered(to) &&
@@ -171,14 +162,7 @@ contract AccessController is IAccessController, AccessManagedUpgradeable, UUPSUp
         ) {
             revert Errors.AccessController__BothCallerAndRecipientAreNotRegisteredModule(signer, to);
         }
-        // Must be a valid IPAccount
-        if (!IIPAccountRegistry($.ipAccountRegistry).isIpAccount(ipAccount)) {
-            revert Errors.AccessController__IPAccountIsNotValid(ipAccount);
-        }
-        // Owner can call all functions of all modules
-        if (IIPAccount(payable(ipAccount)).owner() == signer) {
-            return;
-        }
+
         uint functionPermission = getPermission(ipAccount, signer, to, func);
         // Specific function permission overrides wildcard/general permission
         if (functionPermission == AccessPermission.ALLOW) {
@@ -194,9 +178,6 @@ contract AccessController is IAccessController, AccessManagedUpgradeable, UUPSUp
             }
             // If module level permission is ABSTAIN, check transaction signer level permission
             if (modulePermission == AccessPermission.ABSTAIN) {
-                if (getPermission(address(0), signer, to, func) == AccessPermission.ALLOW) {
-                    return;
-                }
                 // Pass if the ipAccount allow the signer can call all functions of all modules
                 // Otherwise, revert
                 if (getPermission(ipAccount, signer, address(0), bytes4(0)) == AccessPermission.ALLOW) {
@@ -233,9 +214,6 @@ contract AccessController is IAccessController, AccessManagedUpgradeable, UUPSUp
         address to,
         bytes4 func
     ) internal view returns (bytes32) {
-        if (ipAccount == address(0)) {
-            return keccak256(abi.encode(address(0), address(0), signer, to, func));
-        }
         return keccak256(abi.encode(IIPAccount(payable(ipAccount)).owner(), ipAccount, signer, to, func));
     }
 

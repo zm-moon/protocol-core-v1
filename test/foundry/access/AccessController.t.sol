@@ -138,8 +138,7 @@ contract AccessControllerTest is BaseTest {
             AccessPermission.ALLOW
         );
 
-        vm.prank(owner); // not calling from ipAccount
-        vm.expectRevert(Errors.AccessController__CallerIsNotIPAccount.selector);
+        vm.prank(owner); // directly call by owner
         accessController.setPermission(
             address(ipAccount),
             signer,
@@ -864,71 +863,6 @@ contract AccessControllerTest is BaseTest {
         mockOrchestratorModule.workflowFailure(payable(address(ipAccount)));
     }
 
-    function test_AccessController_OrchestratorModuleWithGlobalPermission() public {
-        vm.startPrank(u.admin);
-        MockOrchestratorModule mockOrchestratorModule = new MockOrchestratorModule(
-            address(ipAccountRegistry),
-            address(moduleRegistry)
-        );
-        moduleRegistry.registerModule("MockOrchestratorModule", address(mockOrchestratorModule));
-
-        MockModule module1WithPermission = new MockModule(
-            address(ipAccountRegistry),
-            address(moduleRegistry),
-            "Module1WithPermission"
-        );
-        moduleRegistry.registerModule("Module1WithPermission", address(module1WithPermission));
-
-        MockModule module2WithPermission = new MockModule(
-            address(ipAccountRegistry),
-            address(moduleRegistry),
-            "Module2WithPermission"
-        );
-        moduleRegistry.registerModule("Module2WithPermission", address(module2WithPermission));
-        vm.stopPrank();
-
-        vm.prank(u.admin);
-        accessController.setGlobalPermission(
-            address(mockOrchestratorModule),
-            address(module1WithPermission),
-            mockModule.executeSuccessfully.selector,
-            AccessPermission.ALLOW
-        );
-
-        vm.prank(u.admin);
-        accessController.setGlobalPermission(
-            address(mockOrchestratorModule),
-            address(module2WithPermission),
-            mockModule.executeNoReturn.selector,
-            AccessPermission.ALLOW
-        );
-
-        vm.prank(owner);
-        mockOrchestratorModule.workflowPass(payable(address(ipAccount)));
-    }
-
-    function test_AccessController_revert_setGlobalPermissionWithInvalidPermission() public {
-        vm.prank(u.admin);
-        vm.expectRevert(Errors.AccessController__PermissionIsNotValid.selector);
-        accessController.setGlobalPermission(
-            address(mockModule),
-            address(mockModule),
-            mockModule.executeNoReturn.selector,
-            3
-        );
-    }
-
-    function test_AccessController_revert_setGlobalPermissionWithZeroSignerAddress() public {
-        vm.prank(u.admin);
-        vm.expectRevert(abi.encodeWithSelector(Errors.AccessController__SignerIsZeroAddress.selector));
-        accessController.setGlobalPermission(
-            address(0),
-            address(mockModule),
-            mockModule.executeNoReturn.selector,
-            AccessPermission.ALLOW
-        );
-    }
-
     function test_AccessController_ipAccountOwnerSetBatchPermissions() public {
         address signer = vm.addr(2);
 
@@ -1237,7 +1171,7 @@ contract AccessControllerTest is BaseTest {
             permission: AccessPermission.ALLOW
         });
 
-        vm.expectRevert(Errors.AccessController__CallerIsNotIPAccount.selector);
+        vm.expectRevert(Errors.AccessController__CallerIsNotIPAccountOrOwner.selector);
         accessController.setBatchPermissions(permissionList);
     }
 
@@ -1595,5 +1529,106 @@ contract AccessControllerTest is BaseTest {
         vm.prank(owner);
         tokenWithdrawalModule.withdrawERC20(payable(address(ipAccount)), address(mock20), 1e18);
         assertEq(mock20.balanceOf(owner), 1e18);
+    }
+
+    function test_AccessController_OwnerSetPermission() public {
+        address signer = vm.addr(2);
+        vm.prank(owner);
+        accessController.setPermission(
+            address(ipAccount),
+            signer,
+            address(mockModule),
+            mockModule.executeSuccessfully.selector,
+            AccessPermission.ALLOW
+        );
+        assertEq(
+            accessController.getPermission(
+                address(ipAccount),
+                signer,
+                address(mockModule),
+                mockModule.executeSuccessfully.selector
+            ),
+            AccessPermission.ALLOW
+        );
+    }
+
+    function test_AccessController_OwnerSetPermissionBatch() public {
+        address signer = vm.addr(2);
+        AccessPermission.Permission[] memory permissionList = new AccessPermission.Permission[](3);
+        permissionList[0] = AccessPermission.Permission({
+            ipAccount: address(ipAccount),
+            signer: signer,
+            to: address(mockModule),
+            func: mockModule.executeSuccessfully.selector,
+            permission: AccessPermission.ALLOW
+        });
+        permissionList[1] = AccessPermission.Permission({
+            ipAccount: address(ipAccount),
+            signer: signer,
+            to: address(mockModule),
+            func: mockModule.executeNoReturn.selector,
+            permission: AccessPermission.DENY
+        });
+        permissionList[2] = AccessPermission.Permission({
+            ipAccount: address(ipAccount),
+            signer: signer,
+            to: address(mockModule),
+            func: mockModule.executeRevert.selector,
+            permission: AccessPermission.ALLOW
+        });
+
+        vm.prank(owner);
+        accessController.setBatchPermissions(permissionList);
+        assertEq(
+            accessController.getPermission(
+                address(ipAccount),
+                signer,
+                address(mockModule),
+                mockModule.executeSuccessfully.selector
+            ),
+            AccessPermission.ALLOW
+        );
+
+        assertEq(
+            accessController.getPermission(
+                address(ipAccount),
+                signer,
+                address(mockModule),
+                mockModule.executeNoReturn.selector
+            ),
+            AccessPermission.DENY
+        );
+
+        assertEq(
+            accessController.getPermission(
+                address(ipAccount),
+                signer,
+                address(mockModule),
+                mockModule.executeRevert.selector
+            ),
+            AccessPermission.ALLOW
+        );
+    }
+
+    function test_AccessController_OwnerCallExternalContracts() public {
+        vm.startPrank(owner);
+        bytes memory result = ipAccount.execute(
+            address(mockNFT),
+            0,
+            abi.encodeWithSignature("mint(address)", address(owner))
+        );
+        assertEq(abi.decode(result, (uint256)), 1);
+
+        ipAccount.execute(
+            address(mockNFT),
+            0,
+            abi.encodeWithSignature("transferFrom(address,address,uint256)", address(owner), address(ipAccount), 1)
+        );
+        result = ipAccount.execute(
+            address(mockNFT),
+            0,
+            abi.encodeWithSignature("balanceOf(address)", address(ipAccount))
+        );
+        assertEq(abi.decode(result, (uint256)), 1);
     }
 }
