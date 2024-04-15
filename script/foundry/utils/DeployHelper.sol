@@ -238,7 +238,10 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         bytes memory ipAccountImplCode = abi.encodePacked(
             type(IPAccountImpl).creationCode,
             abi.encode(
-                address(accessController)
+                address(accessController),
+                address(ipAssetRegistry),
+                address(licenseRegistry),
+                address(moduleRegistry)
             )
         );
         _predeploy(contractKey);
