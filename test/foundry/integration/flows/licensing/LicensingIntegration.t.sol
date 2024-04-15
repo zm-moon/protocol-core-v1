@@ -116,15 +116,6 @@ contract e2e is Test {
             )
         );
 
-        impl = address(new RoyaltyModule());
-        royaltyModule = RoyaltyModule(
-            TestProxyHelper.deployUUPSProxy(
-                impl,
-                abi.encodeCall(RoyaltyModule.initialize, (address(protocolAccessManager)))
-            )
-        );
-        vm.label(address(royaltyModule), "RoyaltyModule");
-
         impl = address(
             new DisputeModule(address(accessController), address(ipAssetRegistry), address(licenseRegistry))
         );
@@ -135,6 +126,15 @@ contract e2e is Test {
                 abi.encodeCall(DisputeModule.initialize, (address(protocolAccessManager)))
             )
         );
+
+        impl = address(new RoyaltyModule(address(disputeModule), address(licenseRegistry)));
+        royaltyModule = RoyaltyModule(
+            TestProxyHelper.deployUUPSProxy(
+                impl,
+                abi.encodeCall(RoyaltyModule.initialize, (address(protocolAccessManager)))
+            )
+        );
+        vm.label(address(royaltyModule), "RoyaltyModule");
 
         impl = address(
             new LicensingModule(
@@ -211,7 +211,6 @@ contract e2e is Test {
         moduleRegistry.registerModule(ROYALTY_MODULE_KEY, address(royaltyModule));
 
         royaltyModule.setLicensingModule(address(licensingModule));
-        royaltyModule.setDisputeModule(address(disputeModule));
         royaltyModule.whitelistRoyaltyToken(address(erc20), true);
         royaltyModule.whitelistRoyaltyPolicy(address(royaltyPolicyLAP), true);
 
