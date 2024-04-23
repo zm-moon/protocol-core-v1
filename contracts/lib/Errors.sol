@@ -75,6 +75,9 @@ library Errors {
     /// @notice Zero address provided for License Token.
     error LicensingModule__ZeroLicenseToken();
 
+    /// @notice Zero address provided for Module Registry.
+    error LicensingModule__ZeroModuleRegistry();
+
     /// @notice Zero address provided for Licensing Module.
     error LicenseRegistry__ZeroLicensingModule();
 
@@ -218,6 +221,12 @@ library Errors {
         uint256 licenseTermsId,
         address licensorIpId
     );
+
+    /// @notice Licensing hook is invalid either not support ILicensingHook interface or not registered as module
+    error LicensingModule__InvalidLicensingHook(address hook);
+
+    /// @notice The license terms ID is invalid or license template doesn't exist.
+    error LicensingModule__InvalidLicenseTermsId(address licenseTemplate, uint256 licenseTermsId);
 
     ////////////////////////////////////////////////////////////////////////////
     //                             Dispute Module                             //
