@@ -167,6 +167,74 @@ contract IPAccountStorageTest is BaseTest, BaseModule {
         assertEq(ipAccount.getBytes32(_toBytes32(address(licenseRegistry)), "test"), "testData");
     }
 
+    function test_IPAccountStorage_BatchSetAndGetBytes() public {
+        bytes32[] memory keys = new bytes32[](2);
+        keys[0] = "test1";
+        keys[1] = "test2";
+        bytes[] memory values = new bytes[](2);
+        values[0] = abi.encodePacked("test1Data");
+        values[1] = abi.encodePacked("test2Data");
+        ipAccount.setBytesBatch(keys, values);
+        assertEq(ipAccount.getBytes("test1"), "test1Data");
+        assertEq(ipAccount.getBytes("test2"), "test2Data");
+
+        bytes32[] memory namespaces = new bytes32[](2);
+        namespaces[0] = _toBytes32(address(this));
+        namespaces[1] = _toBytes32(address(this));
+        bytes[] memory results = ipAccount.getBytesBatch(namespaces, keys);
+        assertEq(results[0], "test1Data");
+        assertEq(results[1], "test2Data");
+    }
+
+    function test_IPAccountStorage_revert_BatchSetAndGetBytes() public {
+        bytes32[] memory keys = new bytes32[](2);
+        keys[0] = "test1";
+        keys[1] = "test2";
+        bytes[] memory values = new bytes[](1);
+        values[0] = abi.encodePacked("test1Data");
+        vm.expectRevert(Errors.IPAccountStorage__InvalidBatchLengths.selector);
+        ipAccount.setBytesBatch(keys, values);
+
+        bytes32[] memory namespaces = new bytes32[](1);
+        namespaces[0] = _toBytes32(address(this));
+        vm.expectRevert(Errors.IPAccountStorage__InvalidBatchLengths.selector);
+        ipAccount.getBytesBatch(namespaces, keys);
+    }
+
+    function test_IPAccountStorage_BatchSetAndGetBytes32() public {
+        bytes32[] memory keys = new bytes32[](2);
+        keys[0] = "test1";
+        keys[1] = "test2";
+        bytes32[] memory values = new bytes32[](2);
+        values[0] = bytes32(uint256(111));
+        values[1] = bytes32(uint256(222));
+        ipAccount.setBytes32Batch(keys, values);
+        assertEq(ipAccount.getBytes32("test1"), bytes32(uint256(111)));
+        assertEq(ipAccount.getBytes32("test2"), bytes32(uint256(222)));
+
+        bytes32[] memory namespaces = new bytes32[](2);
+        namespaces[0] = _toBytes32(address(this));
+        namespaces[1] = _toBytes32(address(this));
+        bytes32[] memory results = ipAccount.getBytes32Batch(namespaces, keys);
+        assertEq(results[0], bytes32(uint256(111)));
+        assertEq(results[1], bytes32(uint256(222)));
+    }
+
+    function test_IPAccountStorage_revert_BatchSetAndGetBytes32() public {
+        bytes32[] memory keys = new bytes32[](2);
+        keys[0] = "test1";
+        keys[1] = "test2";
+        bytes32[] memory values = new bytes32[](1);
+        values[0] = bytes32(uint256(111));
+        vm.expectRevert(Errors.IPAccountStorage__InvalidBatchLengths.selector);
+        ipAccount.setBytes32Batch(keys, values);
+
+        bytes32[] memory namespaces = new bytes32[](1);
+        namespaces[0] = _toBytes32(address(this));
+        vm.expectRevert(Errors.IPAccountStorage__InvalidBatchLengths.selector);
+        ipAccount.getBytes32Batch(namespaces, keys);
+    }
+
     function _toBytes32(address a) internal pure returns (bytes32) {
         return bytes32(uint256(uint160(a)));
     }
