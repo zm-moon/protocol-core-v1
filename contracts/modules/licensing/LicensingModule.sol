@@ -304,7 +304,7 @@ contract LicensingModule is
         // Validate that the owner of the derivative IP is also the owner of the license tokens.
         address childIpOwner = IIPAccount(payable(childIpId)).owner();
         (address licenseTemplate, address[] memory parentIpIds, uint256[] memory licenseTermsIds) = LICENSE_NFT
-            .validateLicenseTokensForDerivative(childIpId, childIpOwner, licenseTokenIds);
+            .validateLicenseTokensForDerivative(msg.sender, childIpId, licenseTokenIds);
 
         _verifyIpNotDisputed(childIpId);
 
