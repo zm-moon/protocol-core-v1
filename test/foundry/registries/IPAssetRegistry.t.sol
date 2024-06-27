@@ -4,7 +4,6 @@ pragma solidity 0.8.23;
 import { IIPAssetRegistry } from "contracts/interfaces/registries/IIPAssetRegistry.sol";
 import { IPAccountChecker } from "contracts/lib/registries/IPAccountChecker.sol";
 import { IPAssetRegistry } from "contracts/registries/IPAssetRegistry.sol";
-import { IIPAccountRegistry } from "contracts/interfaces/registries/IIPAccountRegistry.sol";
 import { Errors } from "contracts/lib/Errors.sol";
 import { IIPAccount } from "contracts/interfaces/IIPAccount.sol";
 import { IPAccountStorageOps } from "contracts/lib/IPAccountStorageOps.sol";
@@ -81,8 +80,13 @@ contract IPAssetRegistryTest is BaseTest {
     /// @notice Tests registration of IP permissionlessly for IPAccount already created.
     function test_IPAssetRegistry_RegisterPermissionless_IPAccountAlreadyExist() public {
         uint256 totalSupply = registry.totalSupply();
-
-        IIPAccountRegistry(registry).registerIpAccount(block.chainid, tokenAddress, tokenId);
+        erc6551Registry.createAccount(
+            ipAccountRegistry.IP_ACCOUNT_IMPL(),
+            ipAccountRegistry.IP_ACCOUNT_SALT(),
+            block.chainid,
+            tokenAddress,
+            tokenId
+        );
         string memory name = string.concat(block.chainid.toString(), ": Ape #99");
         vm.expectEmit(true, true, true, true);
         emit IIPAssetRegistry.IPRegistered(
@@ -156,7 +160,17 @@ contract IPAssetRegistryTest is BaseTest {
         assertTrue(!registry.isRegistered(address(0x12345)));
         assertTrue(!registry.isRegistered(address(this)));
         mockNFT.mintId(alice, 1000);
-        assertTrue(!registry.isRegistered(ipAssetRegistry.registerIpAccount(block.chainid, address(mockNFT), 1000)));
+        assertTrue(
+            !registry.isRegistered(
+                erc6551Registry.createAccount(
+                    ipAccountRegistry.IP_ACCOUNT_IMPL(),
+                    ipAccountRegistry.IP_ACCOUNT_SALT(),
+                    block.chainid,
+                    address(mockNFT),
+                    1000
+                )
+            )
+        );
     }
 
     /// @notice Tests registration of IP NFT from other chain.
