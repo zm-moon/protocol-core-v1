@@ -17,6 +17,7 @@ import { MockERC20 } from "../mocks/token/MockERC20.sol";
 import { MockERC721 } from "../mocks/token/MockERC721.sol";
 import { MockRoyaltyPolicyLAP } from "../mocks/policy/MockRoyaltyPolicyLAP.sol";
 import { Users, UsersLib } from "./Users.t.sol";
+import { LicenseRegistryHarness } from "../mocks/module/LicenseRegistryHarness.sol";
 
 /// @title Base Test Contract
 /// @notice This contract provides a set of protocol-related testing utilities
@@ -49,6 +50,8 @@ contract BaseTest is Test, DeployHelper, LicensingHelper {
     uint256 internal constant ARBITRATION_PRICE = 1000 * 10 ** 6; // 1000 MockToken (6 decimals)
     uint256 internal constant MAX_ROYALTY_APPROVAL = 10000 ether;
     address internal constant TREASURY_ADDRESS = address(200);
+
+    address internal lrHarnessImpl;
 
     constructor()
         DeployHelper(
@@ -89,6 +92,7 @@ contract BaseTest is Test, DeployHelper, LicensingHelper {
         dealMockAssets();
 
         ipAccountRegistry = IPAccountRegistry(ipAssetRegistry);
+        lrHarnessImpl = address(new LicenseRegistryHarness(address(licensingModule), address(disputeModule)));
     }
 
     function dealMockAssets() public {
