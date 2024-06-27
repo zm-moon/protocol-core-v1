@@ -183,12 +183,12 @@ contract LicensingModuleTest is BaseTest {
             commercializerChecker: address(0),
             commercializerCheckerData: "",
             commercialRevShare: 0,
-            commercialRevCelling: 0,
+            commercialRevCeiling: 0,
             derivativesAllowed: true,
             derivativesAttribution: true,
             derivativesApproval: false,
             derivativesReciprocal: true,
-            derivativeRevCelling: 0,
+            derivativeRevCeiling: 0,
             currency: address(0x123),
             uri: ""
         });
@@ -427,12 +427,12 @@ contract LicensingModuleTest is BaseTest {
             commercializerChecker: address(0),
             commercializerCheckerData: "",
             commercialRevShare: 0,
-            commercialRevCelling: 0,
+            commercialRevCeiling: 0,
             derivativesAllowed: true,
             derivativesAttribution: true,
             derivativesApproval: false,
             derivativesReciprocal: true,
-            derivativeRevCelling: 0,
+            derivativeRevCeiling: 0,
             currency: address(0x123),
             uri: ""
         });
@@ -463,9 +463,7 @@ contract LicensingModuleTest is BaseTest {
         vm.prank(ipOwner1);
         licensingModule.attachLicenseTerms(ipId1, address(pilTemplate), termsId);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(Errors.LicensingModule__LicensorIpNotRegistered.selector)
-        );
+        vm.expectRevert(abi.encodeWithSelector(Errors.LicensingModule__LicensorIpNotRegistered.selector));
         uint256 lcTokenId = licensingModule.mintLicenseTokens({
             licensorIpId: address(0x123),
             licenseTemplate: address(pilTemplate),
@@ -475,7 +473,6 @@ contract LicensingModuleTest is BaseTest {
             royaltyContext: ""
         });
     }
-
 
     function test_LicensingModule_mintLicenseTokens_revert_invalidInputs() public {
         uint256 termsId = pilTemplate.registerLicenseTerms(PILFlavors.defaultValuesLicenseTerms());
@@ -634,7 +631,7 @@ contract LicensingModuleTest is BaseTest {
     function test_LicensingModule_registerDerivativeWithLicenseTokens_revert_pause() public {
         uint256 termsId = pilTemplate.registerLicenseTerms(PILFlavors.nonCommercialSocialRemixing());
         vm.prank(ipOwner1);
-        
+
         licensingModule.attachLicenseTerms(ipId1, address(pilTemplate), termsId);
 
         uint256 lcTokenId = licensingModule.mintLicenseTokens({
@@ -1087,12 +1084,12 @@ contract LicensingModuleTest is BaseTest {
             commercializerChecker: address(tokenGatedHook),
             commercializerCheckerData: abi.encode(address(gatedNftBar)),
             commercialRevShare: 0,
-            commercialRevCelling: 0,
+            commercialRevCeiling: 0,
             derivativesAllowed: true,
             derivativesAttribution: true,
             derivativesApproval: false,
             derivativesReciprocal: true,
-            derivativeRevCelling: 0,
+            derivativeRevCeiling: 0,
             currency: address(0x123),
             uri: ""
         });
@@ -1136,12 +1133,12 @@ contract LicensingModuleTest is BaseTest {
             commercializerChecker: address(tokenGatedHook),
             commercializerCheckerData: abi.encode(address(gatedNftBar)),
             commercialRevShare: 0,
-            commercialRevCelling: 0,
+            commercialRevCeiling: 0,
             derivativesAllowed: true,
             derivativesAttribution: true,
             derivativesApproval: false,
             derivativesReciprocal: true,
-            derivativeRevCelling: 0,
+            derivativeRevCeiling: 0,
             currency: address(0x123),
             uri: ""
         });
@@ -1183,12 +1180,12 @@ contract LicensingModuleTest is BaseTest {
             commercializerChecker: address(tokenGatedHook),
             commercializerCheckerData: abi.encode(address(gatedNftBar)),
             commercialRevShare: 0,
-            commercialRevCelling: 0,
+            commercialRevCeiling: 0,
             derivativesAllowed: true,
             derivativesAttribution: true,
             derivativesApproval: false,
             derivativesReciprocal: true,
-            derivativeRevCelling: 0,
+            derivativeRevCeiling: 0,
             currency: address(0x123),
             uri: ""
         });
