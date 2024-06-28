@@ -176,7 +176,7 @@ contract LicensingModuleTest is BaseTest {
         PILTerms memory terms = PILTerms({
             transferable: true,
             royaltyPolicy: address(royaltyPolicyLAP),
-            mintingFee: 0,
+            defaultMintingFee: 0,
             expiration: 10 days,
             commercialUse: true,
             commercialAttribution: true,
@@ -420,7 +420,7 @@ contract LicensingModuleTest is BaseTest {
         PILTerms memory terms = PILTerms({
             transferable: true,
             royaltyPolicy: address(royaltyPolicyLAP),
-            mintingFee: 0,
+            defaultMintingFee: 0,
             expiration: 10 days,
             commercialUse: true,
             commercialAttribution: true,
@@ -803,20 +803,19 @@ contract LicensingModuleTest is BaseTest {
     }
 
     function test_LicensingModule_registerDerivativeWithLicenseTokens_revert_ParentExpired() public {
-        uint256 termsId = pilTemplate.registerLicenseTerms(PILFlavors.nonCommercialSocialRemixing());
         PILTerms memory expiredTerms = PILFlavors.nonCommercialSocialRemixing();
         expiredTerms.expiration = 10 days;
         uint256 expiredTermsId = pilTemplate.registerLicenseTerms(expiredTerms);
 
         vm.prank(ipOwner1);
-        licensingModule.attachLicenseTerms(ipId1, address(pilTemplate), termsId);
+        licensingModule.attachLicenseTerms(ipId1, address(pilTemplate), expiredTermsId);
         vm.prank(ipOwner2);
         licensingModule.attachLicenseTerms(ipId2, address(pilTemplate), expiredTermsId);
 
         uint256 lcTokenId1 = licensingModule.mintLicenseTokens({
             licensorIpId: ipId1,
             licenseTemplate: address(pilTemplate),
-            licenseTermsId: termsId,
+            licenseTermsId: expiredTermsId,
             amount: 1,
             receiver: ipOwner3,
             royaltyContext: ""
@@ -832,7 +831,7 @@ contract LicensingModuleTest is BaseTest {
         });
 
         assertEq(licenseToken.ownerOf(lcTokenId1), ipOwner3);
-        assertEq(licenseToken.getLicenseTermsId(lcTokenId1), termsId);
+        assertEq(licenseToken.getLicenseTermsId(lcTokenId1), expiredTermsId);
         assertEq(licenseToken.getLicenseTemplate(lcTokenId1), address(pilTemplate));
         assertEq(licenseToken.getLicensorIpId(lcTokenId1), ipId1);
 
@@ -851,9 +850,8 @@ contract LicensingModuleTest is BaseTest {
         vm.prank(ipOwner3);
         licensingModule.registerDerivativeWithLicenseTokens(ipId3, licenseTokens, "");
 
-        assertEq(licenseRegistry.hasIpAttachedLicenseTerms(ipId3, address(pilTemplate), termsId), true);
         assertEq(licenseRegistry.hasIpAttachedLicenseTerms(ipId3, address(pilTemplate), expiredTermsId), true);
-        assertEq(licenseRegistry.getAttachedLicenseTermsCount(ipId3), 2);
+        assertEq(licenseRegistry.getAttachedLicenseTermsCount(ipId3), 1);
         assertEq(licenseRegistry.isDerivativeIp(ipId3), true);
         assertEq(licenseRegistry.hasDerivativeIps(ipId3), false);
         assertEq(licenseRegistry.getDerivativeIpCount(ipId3), 0);
@@ -874,16 +872,7 @@ contract LicensingModuleTest is BaseTest {
 
         (address licenseTemplate, uint256 licenseTermsId) = licenseRegistry.getAttachedLicenseTerms(ipId3, 0);
         assertEq(licenseTemplate, address(pilTemplate));
-        assertEq(licenseTermsId, termsId);
-        (address anotherLicenseTemplate, uint256 anotherLicenseTermsId) = licenseRegistry.getAttachedLicenseTerms(
-            ipId3,
-            1
-        );
-        assertEq(anotherLicenseTemplate, address(pilTemplate));
-        assertEq(anotherLicenseTermsId, expiredTermsId);
-        uint256[] memory licenseTerms = new uint256[](2);
-        licenseTerms[0] = termsId;
-        licenseTerms[1] = expiredTermsId;
+        assertEq(licenseTermsId, expiredTermsId);
 
         assertEq(licenseRegistry.getExpireTime(ipId3), block.timestamp + 10 days, "IPA has unexpected expiration time");
         vm.warp(5 days);
@@ -891,7 +880,7 @@ contract LicensingModuleTest is BaseTest {
         uint256 lcTokenId3 = licensingModule.mintLicenseTokens({
             licensorIpId: ipId3,
             licenseTemplate: address(pilTemplate),
-            licenseTermsId: termsId,
+            licenseTermsId: expiredTermsId,
             amount: 1,
             receiver: ipOwner5,
             royaltyContext: ""
@@ -1128,7 +1117,7 @@ contract LicensingModuleTest is BaseTest {
         PILTerms memory terms = PILTerms({
             transferable: true,
             royaltyPolicy: address(royaltyPolicyLAP),
-            mintingFee: 0,
+            defaultMintingFee: 0,
             expiration: 0,
             commercialUse: true,
             commercialAttribution: true,
@@ -1177,7 +1166,7 @@ contract LicensingModuleTest is BaseTest {
         PILTerms memory terms = PILTerms({
             transferable: true,
             royaltyPolicy: address(royaltyPolicyLAP),
-            mintingFee: 0,
+            defaultMintingFee: 0,
             expiration: 0,
             commercialUse: true,
             commercialAttribution: true,
@@ -1224,7 +1213,7 @@ contract LicensingModuleTest is BaseTest {
         PILTerms memory terms = PILTerms({
             transferable: true,
             royaltyPolicy: address(royaltyPolicyLAP),
-            mintingFee: 0,
+            defaultMintingFee: 0,
             expiration: 0,
             commercialUse: true,
             commercialAttribution: true,
