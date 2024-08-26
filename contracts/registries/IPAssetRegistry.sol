@@ -8,6 +8,7 @@ import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import { IIPAccount } from "../interfaces/IIPAccount.sol";
+import { GroupIPAssetRegistry } from "./GroupIPAssetRegistry.sol";
 import { IIPAssetRegistry } from "../interfaces/registries/IIPAssetRegistry.sol";
 import { ProtocolPausableUpgradeable } from "../pause/ProtocolPausableUpgradeable.sol";
 import { IPAccountRegistry } from "../registries/IPAccountRegistry.sol";
@@ -23,7 +24,13 @@ import { IPAccountStorageOps } from "../lib/IPAccountStorageOps.sol";
 ///         attribution and an IP account for protocol authorization.
 ///         IMPORTANT: The IP account address, besides being used for protocol
 ///                    auth, is also the canonical IP identifier for the IP NFT.
-contract IPAssetRegistry is IIPAssetRegistry, IPAccountRegistry, ProtocolPausableUpgradeable, UUPSUpgradeable {
+contract IPAssetRegistry is
+    IIPAssetRegistry,
+    IPAccountRegistry,
+    ProtocolPausableUpgradeable,
+    GroupIPAssetRegistry,
+    UUPSUpgradeable
+{
     using ERC165Checker for address;
     using Strings for *;
     using IPAccountStorageOps for IIPAccount;
@@ -40,7 +47,11 @@ contract IPAssetRegistry is IIPAssetRegistry, IPAccountRegistry, ProtocolPausabl
         0x987c61809af5a42943abd137c7acff8426aab6f7a1f5c967a03d1d718ba5cf00;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address erc6551Registry, address ipAccountImpl) IPAccountRegistry(erc6551Registry, ipAccountImpl) {
+    constructor(
+        address erc6551Registry,
+        address ipAccountImpl,
+        address groupingModule
+    ) IPAccountRegistry(erc6551Registry, ipAccountImpl) GroupIPAssetRegistry(groupingModule) {
         _disableInitializers();
     }
 
@@ -65,6 +76,10 @@ contract IPAssetRegistry is IIPAssetRegistry, IPAccountRegistry, ProtocolPausabl
         address tokenContract,
         uint256 tokenId
     ) external whenNotPaused returns (address id) {
+        id = _register({ chainid: chainid, tokenContract: tokenContract, tokenId: tokenId });
+    }
+
+    function _register(uint256 chainid, address tokenContract, uint256 tokenId) internal override returns (address id) {
         id = _registerIpAccount(chainid, tokenContract, tokenId);
         IIPAccount ipAccount = IIPAccount(payable(id));
 
@@ -97,12 +112,7 @@ contract IPAssetRegistry is IIPAssetRegistry, IPAccountRegistry, ProtocolPausabl
     /// @param id The canonical identifier for the IP.
     /// @return isRegistered Whether the IP was registered into the protocol.
     function isRegistered(address id) external view returns (bool) {
-        if (id == address(0)) return false;
-        if (id.code.length == 0) return false;
-        if (!ERC165Checker.supportsInterface(id, type(IIPAccount).interfaceId)) return false;
-        (uint chainId, address tokenContract, uint tokenId) = IIPAccount(payable(id)).token();
-        if (id != ipAccount(chainId, tokenContract, tokenId)) return false;
-        return bytes(IIPAccount(payable(id)).getString("NAME")).length != 0;
+        return _isRegistered(id);
     }
 
     /// @notice Gets the total number of IP assets registered in the protocol.
@@ -142,6 +152,15 @@ contract IPAssetRegistry is IIPAssetRegistry, IPAccountRegistry, ProtocolPausabl
             tokenId.toString()
         );
         uri = IERC721Metadata(tokenContract).tokenURI(tokenId);
+    }
+
+    function _isRegistered(address id) internal view override returns (bool) {
+        if (id == address(0)) return false;
+        if (id.code.length == 0) return false;
+        if (!ERC165Checker.supportsInterface(id, type(IIPAccount).interfaceId)) return false;
+        (uint chainId, address tokenContract, uint tokenId) = IIPAccount(payable(id)).token();
+        if (id != ipAccount(chainId, tokenContract, tokenId)) return false;
+        return bytes(IIPAccount(payable(id)).getString("NAME")).length != 0;
     }
 
     /// @dev Hook to authorize the upgrade according to UUPSUpgradeable

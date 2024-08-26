@@ -25,7 +25,7 @@ import { ProtocolAdmin } from "contracts/lib/ProtocolAdmin.sol";
 import { Errors } from "contracts/lib/Errors.sol";
 import { PILFlavors } from "contracts/lib/PILFlavors.sol";
 // solhint-disable-next-line max-line-length
-import { DISPUTE_MODULE_KEY, ROYALTY_MODULE_KEY, LICENSING_MODULE_KEY, TOKEN_WITHDRAWAL_MODULE_KEY, CORE_METADATA_MODULE_KEY, CORE_METADATA_VIEW_MODULE_KEY } from "contracts/lib/modules/Module.sol";
+import { DISPUTE_MODULE_KEY, ROYALTY_MODULE_KEY, LICENSING_MODULE_KEY, TOKEN_WITHDRAWAL_MODULE_KEY, CORE_METADATA_MODULE_KEY, CORE_METADATA_VIEW_MODULE_KEY, GROUPING_MODULE_KEY } from "contracts/lib/modules/Module.sol";
 import { IPAccountRegistry } from "contracts/registries/IPAccountRegistry.sol";
 import { IPAssetRegistry } from "contracts/registries/IPAssetRegistry.sol";
 import { ModuleRegistry } from "contracts/registries/ModuleRegistry.sol";
@@ -43,6 +43,8 @@ import { CoreMetadataModule } from "contracts/modules/metadata/CoreMetadataModul
 import { CoreMetadataViewModule } from "contracts/modules/metadata/CoreMetadataViewModule.sol";
 import { PILicenseTemplate, PILTerms } from "contracts/modules/licensing/PILicenseTemplate.sol";
 import { LicenseToken } from "contracts/LicenseToken.sol";
+import { GroupNFT } from "contracts/GroupNFT.sol";
+import { GroupingModule } from "contracts/modules/grouping/GroupingModule.sol";
 import { PILFlavors } from "contracts/lib/PILFlavors.sol";
 import { IPGraphACL } from "contracts/access/IPGraphACL.sol";
 
@@ -102,6 +104,10 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
     // License system
     LicenseToken internal licenseToken;
     PILicenseTemplate internal pilTemplate;
+
+    // Grouping
+    GroupNFT internal groupNft;
+    GroupingModule internal groupingModule;
 
     // Token
     ERC20 private erc20; // keep private to avoid conflict with inheriting contracts
@@ -242,7 +248,13 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
 
         contractKey = "IPAssetRegistry";
         _predeploy(contractKey);
-        impl = address(new IPAssetRegistry(address(erc6551Registry), _getDeployedAddress(type(IPAccountImpl).name)));
+        impl = address(
+            new IPAssetRegistry(
+                address(erc6551Registry),
+                _getDeployedAddress(type(IPAccountImpl).name),
+                _getDeployedAddress(type(GroupingModule).name)
+            )
+        );
         ipAssetRegistry = IPAssetRegistry(
             TestProxyHelper.deployUUPSProxy(
                 create3Deployer,
@@ -370,6 +382,55 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         require(_loadProxyImpl(address(royaltyModule)) == impl, "RoyaltyModule Proxy Implementation Mismatch");
         impl = address(0);
         _postdeploy(contractKey, address(royaltyModule));
+
+        contractKey = "GroupNFT";
+        _predeploy(contractKey);
+        impl = address(new GroupNFT( _getDeployedAddress(type(GroupingModule).name)));
+        groupNft = GroupNFT(
+            TestProxyHelper.deployUUPSProxy(
+                create3Deployer,
+                _getSalt(type(GroupNFT).name),
+                impl,
+                abi.encodeCall(
+                    GroupNFT.initialize,
+                    (
+                        address(protocolAccessManager),
+                        "https://github.com/storyprotocol/protocol-core/blob/main/assets/license-image.gif"
+                    )
+                )
+            )
+        );
+        require(_getDeployedAddress(type(GroupNFT).name) == address(groupNft), "Deploy: GroupNFT Address Mismatch");
+        require(_loadProxyImpl(address(groupNft)) == impl, "GroupNFT Proxy Implementation Mismatch");
+        impl = address(0); // Make sure we don't deploy wrong impl
+        _postdeploy(contractKey, address(groupNft));
+
+        contractKey = "GroupingModule";
+        _predeploy(contractKey);
+        impl = address(
+            new GroupingModule(
+                address(accessController),
+                address(ipAssetRegistry),
+                address(licenseRegistry),
+                _getDeployedAddress(type(LicenseToken).name),
+                address(groupNft)
+            )
+        );
+        groupingModule = GroupingModule(
+            TestProxyHelper.deployUUPSProxy(
+                create3Deployer,
+                _getSalt(type(GroupingModule).name),
+                impl,
+                abi.encodeCall(GroupingModule.initialize, address(protocolAccessManager))
+            )
+        );
+        require(
+            _getDeployedAddress(type(GroupingModule).name) == address(groupingModule),
+            "Deploy: Grouping Module Address Mismatch"
+        );
+        require(_loadProxyImpl(address(groupingModule)) == impl, "Grouping Proxy Implementation Mismatch");
+        impl = address(0);
+        _postdeploy(contractKey, address(groupingModule));
 
         contractKey = "LicensingModule";
         _predeploy(contractKey);
@@ -521,7 +582,10 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         ipRoyaltyVaultBeacon = UpgradeableBeacon(
             create3Deployer.deploy(
                 _getSalt(type(UpgradeableBeacon).name),
-                abi.encodePacked(type(UpgradeableBeacon).creationCode, abi.encode(address(ipRoyaltyVaultImpl), deployer))
+                abi.encodePacked(
+                    type(UpgradeableBeacon).creationCode,
+                    abi.encode(address(ipRoyaltyVaultImpl), deployer)
+                )
             )
         );
         _postdeploy("IpRoyaltyVaultBeacon", address(ipRoyaltyVaultBeacon));
@@ -540,7 +604,10 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
             _getDeployedAddress(type(CoreMetadataModule).name) == address(coreMetadataModule),
             "Deploy: Core Metadata Module Address Mismatch"
         );
-        require(_loadProxyImpl(address(coreMetadataModule)) == impl, "CoreMetadataModule Proxy Implementation Mismatch");
+        require(
+            _loadProxyImpl(address(coreMetadataModule)) == impl,
+            "CoreMetadataModule Proxy Implementation Mismatch"
+        );
         _postdeploy("CoreMetadataModule", address(coreMetadataModule));
 
         _predeploy("CoreMetadataViewModule");
@@ -596,6 +663,7 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         moduleRegistry.registerModule(ROYALTY_MODULE_KEY, address(royaltyModule));
         moduleRegistry.registerModule(CORE_METADATA_MODULE_KEY, address(coreMetadataModule));
         moduleRegistry.registerModule(CORE_METADATA_VIEW_MODULE_KEY, address(coreMetadataViewModule));
+        moduleRegistry.registerModule(GROUPING_MODULE_KEY, address(groupingModule));
 
         // Royalty Module and SP Royalty Policy
         royaltyModule.whitelistRoyaltyPolicy(address(royaltyPolicyLAP), true);
@@ -643,7 +711,11 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         protocolAccessManager.setTargetFunctionRole(address(licenseRegistry), selectors, ProtocolAdmin.UPGRADER_ROLE);
         protocolAccessManager.setTargetFunctionRole(address(moduleRegistry), selectors, ProtocolAdmin.UPGRADER_ROLE);
         protocolAccessManager.setTargetFunctionRole(address(ipAssetRegistry), selectors, ProtocolAdmin.UPGRADER_ROLE);
-        protocolAccessManager.setTargetFunctionRole(address(coreMetadataModule), selectors, ProtocolAdmin.UPGRADER_ROLE);
+        protocolAccessManager.setTargetFunctionRole(
+            address(coreMetadataModule),
+            selectors,
+            ProtocolAdmin.UPGRADER_ROLE
+        );
 
         // Royalty and Upgrade Beacon
         // Owner of the beacon is the RoyaltyPolicyLAP

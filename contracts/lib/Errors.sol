@@ -61,6 +61,78 @@ library Errors {
     error IPAccountRegistry_ZeroERC6551Registry();
 
     ////////////////////////////////////////////////////////////////////////////
+    //                        Group IP Asset Registry                         //
+    ////////////////////////////////////////////////////////////////////////////
+
+    /// @notice The caller to Group IP Asset Registry is not the Grouping Module.
+    error GroupIPAssetRegistry__CallerIsNotGroupingModule(address caller);
+
+    /// @notice The give address is not a registered Group IP.
+    error GroupIPAssetRegistry__NotRegisteredGroupIP(address groupId);
+
+    /// @notice The give address is not a registered IPA.
+    error GroupIPAssetRegistry__NotRegisteredIP(address ipId);
+
+    /// @notice Zero address provided for Group Reward Pool.
+    error GroupIPAssetRegistry__InvalidGroupRewardPool(address rewardPool);
+
+    /// @notice Zero address provided for Group Reward Pool.
+    error GroupingModule__ZeroGroupRewardPool();
+
+    /// @notice The reward pool is invalid not support the required interfaces.
+    error GroupingModule__InvalidGroupRewardPool(address rewardPool);
+
+    /// @notice Zero address provided for Royalty Module.
+    error GroupingModule__ZeroRoyaltyModule();
+
+    /// @notice Zero address provided for Module Registry.
+    error GroupingModule__ZeroLicenseRegistry();
+
+    /// @notice Zero address provided for Access Manager in initializer.
+    error GroupingModule__ZeroAccessManager();
+
+    /// @notice Zero address provided for Group NFT.
+    error GroupingModule__ZeroGroupNFT();
+
+    /// @notice Zero address provided for IP Asset Registry.
+    error GroupingModule__ZeroIpAssetRegistry();
+
+    /// @notice Zero address provided for License Token.
+    error GroupingModule__ZeroLicenseToken();
+
+    /// @notice Invalid address of GroupNFT that does not support IGroupNFT interface.
+    error GroupingModule__InvalidGroupNFT(address groupNFT);
+
+    /// @notice Group Pool is not registered.
+    error GroupIPAssetRegistry__GroupRewardPoolNotRegistered(address groupPool);
+
+    /// @notice The group ip has derivative IPs.
+    error GroupingModule__GroupFrozenDueToHasDerivativeIps(address groupId);
+
+    /// @notice The group ip has no attached any license terms.
+    error GroupingModule__GroupIPHasNoLicenseTerms(address groupId);
+
+    /// @notice The IP has no attached the same license terms of Group IPA.
+    error GroupingModule__IpHasNoGroupLicenseTerms(address groupId, address licenseTemplate, uint256 licenseTermsId);
+
+    /// @notice The Group IP's license terms should not have minting fee.
+    error GroupingModule__GroupIPHasMintingFee(address groupId, address licenseTemplate, uint256 licenseTermsId);
+
+    /// @notice The caller to GroupingModule is not the Licensing Module.
+    error GroupingModule__CallerIsNotLicensingModule(address caller);
+
+    /// @notice Cannot add group to group.
+    error GroupingModule__CannotAddGroupToGroup(address groupId, address childGroupId);
+
+    /// @notice The Group IP has been frozen.
+    error GroupIPAssetRegistry__GroupFrozen(address groupId);
+
+    /// @notice The Group IP has not been frozen.
+    error GroupIPAssetRegistry__GroupNotFrozen(address groupId);
+
+    /// @notice The Group IP has been frozen due to already mint license tokens.
+    error GroupingModule__GroupFrozenDueToAlreadyMintLicenseTokens(address groupId);
+    ////////////////////////////////////////////////////////////////////////////
     //                            IP Asset Registry                           //
     ////////////////////////////////////////////////////////////////////////////
 
@@ -270,6 +342,9 @@ library Errors {
 
     /// @notice The license terms ID is invalid or license template doesn't exist.
     error LicensingModule__InvalidLicenseTermsId(address licenseTemplate, uint256 licenseTermsId);
+
+    /// @notice Grouping Module is zero address.
+    error LicensingModule__ZeroGroupingModule();
 
     ////////////////////////////////////////////////////////////////////////////
     //                             Dispute Module                             //
@@ -596,4 +671,10 @@ library Errors {
 
     /// @notice The address is not whitelisted.
     error IPGraphACL__NotWhitelisted(address addr);
+
+    ////////////////////////////////////////////////////////////////////////////
+    //                               Group IPA                                //
+    ////////////////////////////////////////////////////////////////////////////
+    error GroupNFT__CallerNotIPAssetRegistry(address caller);
+    error GroupNFT__ZeroAccessManager();
 }
