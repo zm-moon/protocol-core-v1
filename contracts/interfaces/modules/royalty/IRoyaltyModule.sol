@@ -40,6 +40,27 @@ interface IRoyaltyModule is IModule {
     /// @param accumulatedRoyaltyPoliciesLimit The maximum number of accumulated royalty policies an IP asset can have
     event IpGraphLimitsUpdated(uint256 maxParents, uint256 maxAncestors, uint256 accumulatedRoyaltyPoliciesLimit);
 
+    /// @notice Event emitted when a license is minted
+    /// @param ipId The ipId whose license is being minted (licensor)
+    /// @param royaltyPolicy The royalty policy address of the license being minted
+    /// @param licensePercent The license percentage of the license being minted
+    /// @param externalData The external data custom to the royalty policy being minted
+    event LicensedWithRoyalty(address ipId, address royaltyPolicy, uint32 licensePercent, bytes externalData);
+
+    /// @notice Event emitted when an IP asset is linked to parents
+    /// @param ipId The children ipId that is being linked to parents
+    /// @param parentIpIds The parent ipIds that the children ipId is being linked to
+    /// @param licenseRoyaltyPolicies The royalty policies of the each parent license being used to link
+    /// @param licensesPercent The license percentage of the licenses of each parent being used to link
+    /// @param externalData The external data custom to each the royalty policy being used to link
+    event LinkedToParents(
+        address ipId,
+        address[] parentIpIds,
+        address[] licenseRoyaltyPolicies,
+        uint32[] licensesPercent,
+        bytes externalData
+    );
+
     /// @notice Sets the ip graph limits
     /// @dev Enforced to be only callable by the protocol admin
     /// @param parentLimit The maximum number of parents an IP asset can have
@@ -108,8 +129,17 @@ interface IRoyaltyModule is IModule {
     /// @param amount The amount to pay
     function payLicenseMintingFee(address receiverIpId, address payerAddress, address token, uint256 amount) external;
 
-    /// @notice Returns the total number of royalty tokens
-    function totalRtSupply() external pure returns (uint32);
+    /// @notice Returns the number of ancestors for a given IP asset
+    /// @param ipId The ID of IP asset
+    function getAncestorsCount(address ipId) external returns (uint256);
+
+    /// @notice Indicates if an IP asset has a specific ancestor IP asset
+    /// @param ipId The ID of IP asset
+    /// @param ancestorIpId The ID of the ancestor IP asset
+    function hasAncestorIp(address ipId, address ancestorIpId) external returns (bool);
+
+    /// @notice Returns the maximum percentage - represents 100%
+    function maxPercent() external pure returns (uint32);
 
     /// @notice Indicates if a royalty policy is whitelisted
     /// @param royaltyPolicy The address of the royalty policy
@@ -139,7 +169,16 @@ interface IRoyaltyModule is IModule {
     /// @param ipId The ID of IP asset
     function ipRoyaltyVaults(address ipId) external view returns (address);
 
+    /// @notice Returns the global royalty stack for whitelisted royalty policies and a given IP asset
+    /// @param ipId The ID of IP asset
+    function globalRoyaltyStack(address ipId) external view returns (uint32);
+
     /// @notice Returns the accumulated royalty policies for a given IP asset
     /// @param ipId The ID of IP asset
     function accumulatedRoyaltyPolicies(address ipId) external view returns (address[] memory);
+
+    /// @notice Returns the total lifetime revenue tokens received for a given IP asset
+    /// @param ipId The ID of IP asset
+    /// @param token The token address
+    function totalRevenueTokensReceived(address ipId, address token) external view returns (uint256);
 }

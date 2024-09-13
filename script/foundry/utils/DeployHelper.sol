@@ -19,7 +19,7 @@ import { ProtocolPausableUpgradeable } from "contracts/pause/ProtocolPausableUpg
 import { AccessController } from "contracts/access/AccessController.sol";
 import { IPAccountImpl } from "contracts/IPAccountImpl.sol";
 import { IIPAccount } from "contracts/interfaces/IIPAccount.sol";
-import { IRoyaltyPolicyLAP } from "contracts/interfaces/modules/royalty/policies/LAP/IRoyaltyPolicyLAP.sol";
+import { IGraphAwareRoyaltyPolicy } from "contracts/interfaces/modules/royalty/policies/IGraphAwareRoyaltyPolicy.sol";
 import { AccessPermission } from "contracts/lib/AccessPermission.sol";
 import { ProtocolAdmin } from "contracts/lib/ProtocolAdmin.sol";
 import { Errors } from "contracts/lib/Errors.sol";
@@ -518,7 +518,6 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         _predeploy("RoyaltyPolicyLAP");
         impl = address(new RoyaltyPolicyLAP(
             address(royaltyModule),
-            address(disputeModule),
             _getDeployedAddress(type(IPGraphACL).name)
         ));
         royaltyPolicyLAP = RoyaltyPolicyLAP(
@@ -538,7 +537,10 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         _postdeploy("RoyaltyPolicyLAP", address(royaltyPolicyLAP));
 
         _predeploy("RoyaltyPolicyLRP");
-        impl = address(new RoyaltyPolicyLRP(address(royaltyModule)));
+        impl = address(new RoyaltyPolicyLRP(
+            address(royaltyModule),
+            _getDeployedAddress(type(IPGraphACL).name)
+        ));
         royaltyPolicyLRP = RoyaltyPolicyLRP(
             TestProxyHelper.deployUUPSProxy(
                 create3Deployer,
@@ -712,6 +714,7 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         // IPGraphACL
         ipGraphACL.whitelistAddress(address(licenseRegistry));
         ipGraphACL.whitelistAddress(address(royaltyPolicyLAP));
+        ipGraphACL.whitelistAddress(address(royaltyPolicyLRP));
 
         // set default license to non-commercial social remixing
         uint256 licenseId = pilTemplate.registerLicenseTerms(PILFlavors.nonCommercialSocialRemixing());
