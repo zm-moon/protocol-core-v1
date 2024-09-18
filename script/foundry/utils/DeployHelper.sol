@@ -100,6 +100,7 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
     AccessManager internal protocolAccessManager; // protocol roles
     AccessController internal accessController; // per IPA roles
     IPGraphACL internal ipGraphACL;
+    bool internal newDeployedIpGraphACL;
 
     // Pause
     ProtocolPauseAdmin internal protocolPauser;
@@ -131,7 +132,8 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         address erc20_,
         uint256 arbitrationPrice_,
         uint256 maxRoyaltyApproval_,
-        address treasury_
+        address treasury_,
+        address ipGraphACL_
     ) JsonDeploymentHandler("main") {
         erc6551Registry = ERC6551Registry(erc6551Registry_);
         create3Deployer = ICreate3Deployer(create3Deployer_);
@@ -139,6 +141,9 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         ARBITRATION_PRICE = arbitrationPrice_;
         MAX_ROYALTY_APPROVAL = maxRoyaltyApproval_;
         TREASURY_ADDRESS = treasury_;
+        ipGraphACL = IPGraphACL(ipGraphACL_);
+        if (address(ipGraphACL) == address(0))
+            newDeployedIpGraphACL = true;
 
         /// @dev USDC addresses are fetched from
         /// (mainnet) https://developers.circle.com/stablecoins/docs/usdc-on-main-networks
@@ -303,7 +308,7 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
             new LicenseRegistry(
                 _getDeployedAddress(type(LicensingModule).name),
                 _getDeployedAddress(type(DisputeModule).name),
-                _getDeployedAddress(type(IPGraphACL).name)
+                newDeployedIpGraphACL ? _getDeployedAddress(type(IPGraphACL).name) : address(ipGraphACL)
             )
         );
         licenseRegistry = LicenseRegistry(
@@ -520,7 +525,7 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         _predeploy("RoyaltyPolicyLAP");
         impl = address(new RoyaltyPolicyLAP(
             address(royaltyModule),
-            _getDeployedAddress(type(IPGraphACL).name)
+            newDeployedIpGraphACL ? _getDeployedAddress(type(IPGraphACL).name) : address(ipGraphACL)
         ));
         royaltyPolicyLAP = RoyaltyPolicyLAP(
             TestProxyHelper.deployUUPSProxy(
@@ -541,7 +546,7 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         _predeploy("RoyaltyPolicyLRP");
         impl = address(new RoyaltyPolicyLRP(
             address(royaltyModule),
-            _getDeployedAddress(type(IPGraphACL).name)
+            newDeployedIpGraphACL ? _getDeployedAddress(type(IPGraphACL).name) : address(ipGraphACL)
         ));
         royaltyPolicyLRP = RoyaltyPolicyLRP(
             TestProxyHelper.deployUUPSProxy(
@@ -647,17 +652,17 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         );
         _postdeploy("CoreMetadataViewModule", address(coreMetadataViewModule));
 
-        _predeploy("IPGraphACL");
-        ipGraphACL = IPGraphACL(
-            create3Deployer.deploy(
-                _getSalt(type(IPGraphACL).name),
-                abi.encodePacked(
-                    type(IPGraphACL).creationCode,
-                    abi.encode(address(protocolAccessManager))
+        // only deploy IPGraphACL if it doesn't exist
+        if (newDeployedIpGraphACL) {
+            _predeploy("IPGraphACL");
+            ipGraphACL = IPGraphACL(
+                create3Deployer.deploy(
+                    _getSalt(type(IPGraphACL).name),
+                    abi.encodePacked(type(IPGraphACL).creationCode, abi.encode(address(protocolAccessManager)))
                 )
-            )
-        );
-        _postdeploy("IPGraphACL", address(ipGraphACL));
+            );
+            _postdeploy("IPGraphACL", address(ipGraphACL));
+        }
     }
 
     function _predeploy(string memory contractKey) private view {
@@ -714,9 +719,12 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
         licenseRegistry.registerLicenseTemplate(address(pilTemplate));
 
         // IPGraphACL
-        ipGraphACL.whitelistAddress(address(licenseRegistry));
-        ipGraphACL.whitelistAddress(address(royaltyPolicyLAP));
-        ipGraphACL.whitelistAddress(address(royaltyPolicyLRP));
+        // only configure IPGraphACL when it first deploys
+        if (newDeployedIpGraphACL) {
+            ipGraphACL.whitelistAddress(address(licenseRegistry));
+            ipGraphACL.whitelistAddress(address(royaltyPolicyLAP));
+            ipGraphACL.whitelistAddress(address(royaltyPolicyLRP));
+        }
 
         // set default license to non-commercial social remixing
         uint256 licenseId = pilTemplate.registerLicenseTerms(PILFlavors.nonCommercialSocialRemixing());
