@@ -36,6 +36,13 @@ contract BroadcastManager is Script {
             relayer = vm.envAddress("STORY_RELAYER_ADDRESS");
             upgraderExecDelay = 10 minutes;
             vm.startBroadcast(deployerPrivateKey);
+        } else if (block.chainid == 1512) {
+            deployerPrivateKey = vm.envUint("STORY_PRIVATEKEY");
+            deployer = vm.addr(deployerPrivateKey);
+            multisig = vm.envAddress("STORY_MULTISIG_ADDRESS");
+            relayer = vm.envAddress("STORY_RELAYER_ADDRESS");
+            upgraderExecDelay = 10 minutes;
+            vm.startBroadcast(deployerPrivateKey);
         } else if (block.chainid == 1337) {
             deployerPrivateKey = vm.envUint("STORY_PRIVATEKEY");
             deployer = vm.addr(deployerPrivateKey);
