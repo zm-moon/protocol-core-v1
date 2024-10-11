@@ -9,7 +9,6 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 // contracts
 // solhint-disable-next-line max-line-length
 import { PILFlavors } from "../../../../../contracts/lib/PILFlavors.sol";
-import { EvenSplitGroupPool } from "../../../../../contracts/modules/grouping/EvenSplitGroupPool.sol";
 import { IGroupingModule } from "../../../../../contracts/interfaces/modules/grouping/IGroupingModule.sol";
 import { IIpRoyaltyVault } from "../../../../../contracts/interfaces/modules/royalty/policies/IIpRoyaltyVault.sol";
 import { IGroupIPAssetRegistry } from "../../../../../contracts/interfaces/registries/IGroupIPAssetRegistry.sol";
@@ -33,16 +32,12 @@ contract Flows_Integration_Grouping is BaseIntegration {
 
     uint32 internal defaultCommRevShare = 10 * 10 ** 6; // 10%
     uint256 internal commRemixTermsId;
-    address internal rewardPool;
 
     address internal groupOwner;
     address internal groupId;
 
     function setUp() public override {
         super.setUp();
-        rewardPool = address(
-            new EvenSplitGroupPool(address(groupingModule), address(royaltyModule), address(ipAssetRegistry))
-        );
         commRemixTermsId = registerSelectedPILicenseTerms(
             "commercial_remix",
             PILFlavors.commercialRemix({
@@ -61,12 +56,10 @@ contract Flows_Integration_Grouping is BaseIntegration {
     }
 
     function test_Integration_Grouping() public {
-        vm.prank(admin);
-        groupingModule.whitelistGroupRewardPool(rewardPool);
         // create a group
         {
             vm.startPrank(groupOwner);
-            groupId = groupingModule.registerGroup(rewardPool);
+            groupId = groupingModule.registerGroup(address(evenSplitGroupPool));
             vm.label(groupId, "Group1");
             licensingModule.attachLicenseTerms(groupId, address(pilTemplate), commRemixTermsId);
             vm.stopPrank();
