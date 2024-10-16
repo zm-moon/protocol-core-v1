@@ -830,6 +830,11 @@ contract DeployHelper is Script, BroadcastManager, JsonDeploymentHandler, Storag
             selectors,
             ProtocolAdmin.PAUSE_ADMIN_ROLE
         );
+        selectors = new bytes4[](4);
+        selectors[0] = ProtocolPauseAdmin.pause.selector;
+        selectors[1] = ProtocolPauseAdmin.unpause.selector;
+        selectors[2] = ProtocolPauseAdmin.pauseAll.selector;
+        selectors[3] = ProtocolPauseAdmin.unpauseAll.selector;
         protocolAccessManager.setTargetFunctionRole(address(protocolPauser), selectors, ProtocolAdmin.PAUSE_ADMIN_ROLE);
         ///////// Role Granting /////////
         protocolAccessManager.grantRole(ProtocolAdmin.UPGRADER_ROLE, multisig, upgraderExecDelay);

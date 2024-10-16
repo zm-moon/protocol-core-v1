@@ -42,13 +42,13 @@ contract ProtocolPauseAdmin is IProtocolPauseAdmin, AccessManaged {
     /// @param pausable The address of the pausable contract.
     function removePausable(address pausable) external restricted {
         if (!_pausables.remove(pausable)) {
-            revert Errors.ProtocolPauseAdmin__PausableNotFound();
+            revert Errors.ProtocolPauseAdmin__PausableNotFound(pausable);
         }
         emit PausableRemoved(pausable);
     }
 
     /// @notice Pauses the protocol by calling the pause() function on all pausable contracts.
-    function pause() external restricted {
+    function pauseAll() external restricted {
         uint256 length = _pausables.length();
         for (uint256 i = 0; i < length; i++) {
             ProtocolPausableUpgradeable p = ProtocolPausableUpgradeable(_pausables.at(i));
@@ -60,7 +60,7 @@ contract ProtocolPauseAdmin is IProtocolPauseAdmin, AccessManaged {
     }
 
     /// @notice Unpauses the protocol by calling the unpause() function on all pausable contracts.
-    function unpause() external restricted {
+    function unpauseAll() external restricted {
         uint256 length = _pausables.length();
         for (uint256 i = 0; i < length; i++) {
             ProtocolPausableUpgradeable p = ProtocolPausableUpgradeable(_pausables.at(i));
@@ -83,6 +83,34 @@ contract ProtocolPauseAdmin is IProtocolPauseAdmin, AccessManaged {
             }
         }
         return true;
+    }
+
+    /// @notice Pauses a list of pausable contracts.
+    /// @param pausables The addresses of the pausable contracts.
+    function pause(address[] calldata pausables) external restricted {
+        for (uint256 i = 0; i < pausables.length; i++) {
+            if (!_pausables.contains(pausables[i])) {
+                revert Errors.ProtocolPauseAdmin__PausableNotFound(pausables[i]);
+            }
+            ProtocolPausableUpgradeable p = ProtocolPausableUpgradeable(pausables[i]);
+            if (!p.paused()) {
+                p.pause();
+            }
+        }
+    }
+
+    /// @notice Unpauses a list of pausable contracts.
+    /// @param pausables The addresses of the pausable contracts.
+    function unpause(address[] calldata pausables) external restricted {
+        for (uint256 i = 0; i < pausables.length; i++) {
+            if (!_pausables.contains(pausables[i])) {
+                revert Errors.ProtocolPauseAdmin__PausableNotFound(pausables[i]);
+            }
+            ProtocolPausableUpgradeable p = ProtocolPausableUpgradeable(pausables[i]);
+            if (p.paused()) {
+                p.unpause();
+            }
+        }
     }
 
     /// @notice Checks if a pausable contract is registered.

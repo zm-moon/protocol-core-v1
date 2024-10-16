@@ -24,10 +24,16 @@ interface IProtocolPauseAdmin {
     function removePausable(address pausable) external;
 
     /// @notice Pauses the protocol by calling the pause() function on all pausable contracts.
-    function pause() external;
+    function pauseAll() external;
 
     /// @notice Unpauses the protocol by calling the unpause() function on all pausable contracts.
-    function unpause() external;
+    function unpauseAll() external;
+
+    /// @notice Pauses a list of pausable contracts.
+    function pause(address[] calldata pausables) external;
+
+    /// @notice Unpauses a list of pausable contracts.
+    function unpause(address[] calldata pausables) external;
 
     /// @notice Checks if a pausable contract is registered.
     function isPausableRegistered(address pausable) external view returns (bool);

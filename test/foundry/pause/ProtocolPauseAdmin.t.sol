@@ -90,30 +90,31 @@ contract ProtocolPauseAdminTest is BaseTest {
         protocolPauser.removePausable(address(u.admin));
     }
 
-    function test_ProtocolPauseAdmin_pause() public {
+    function test_ProtocolPauseAdmin_pauseAll() public {
         vm.prank(u.admin);
         protocolAccessManager.grantRole(ProtocolAdmin.PAUSE_ADMIN_ROLE, address(u.bob), 0);
 
+        vm.expectEmit(address(protocolPauser));
+        emit IProtocolPauseAdmin.ProtocolPaused();
         vm.prank(u.bob);
-        vm.expectEmit();
-        protocolPauser.pause();
+        protocolPauser.pauseAll();
         assertTrue(protocolPauser.isAllProtocolPaused());
     }
 
-    function test_ProtocolPauseAdmin_pause_revert_notPauser() public {
+    function test_ProtocolPauseAdmin_pauseAll_revert_notPauser() public {
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, address(this)));
-        protocolPauser.pause();
+        protocolPauser.pauseAll();
     }
 
-    function test_ProtocolPauseAdmin_unpause() public {
+    function test_ProtocolPauseAdmin_unpauseAll() public {
         vm.prank(u.admin);
         protocolAccessManager.grantRole(ProtocolAdmin.PAUSE_ADMIN_ROLE, u.bob, 0);
 
         vm.startPrank(u.bob);
-        protocolPauser.pause();
+        protocolPauser.pauseAll();
         vm.expectEmit();
         emit IProtocolPauseAdmin.ProtocolUnpaused();
-        protocolPauser.unpause();
+        protocolPauser.unpauseAll();
         assertFalse(protocolPauser.isAllProtocolPaused());
     }
 

@@ -734,7 +734,7 @@ library Errors {
     error ProtocolPauseAdmin__PausableAlreadyAdded();
 
     /// @notice Removing a contract that is not in the pausable list.
-    error ProtocolPauseAdmin__PausableNotFound();
+    error ProtocolPauseAdmin__PausableNotFound(address pausable);
 
     ////////////////////////////////////////////////////////////////////////////
     //                               IPGraphACL                               //
