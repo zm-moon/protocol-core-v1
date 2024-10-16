@@ -6,6 +6,7 @@ import { ProtocolAdmin } from "contracts/lib/ProtocolAdmin.sol";
 import { IProtocolPauseAdmin } from "contracts/interfaces/pause/IProtocolPauseAdmin.sol";
 
 import { IAccessManaged } from "@openzeppelin/contracts/access/manager/IAccessManaged.sol";
+import { ProtocolPausableUpgradeable } from "contracts/pause/ProtocolPausableUpgradeable.sol";
 
 import { BaseTest } from "../utils/BaseTest.t.sol";
 import { MockProtocolPausable } from "../mocks/MockProtocolPausable.sol";
@@ -23,6 +24,16 @@ contract ProtocolPauseAdminTest is BaseTest {
                 abi.encodeCall(MockProtocolPausable.initialize, address(protocolAccessManager))
             )
         );
+        bytes4[] memory selectors = new bytes4[](2);
+        selectors[0] = ProtocolPausableUpgradeable.pause.selector;
+        selectors[1] = ProtocolPausableUpgradeable.unpause.selector;
+        vm.prank(u.admin);
+        protocolAccessManager.setTargetFunctionRole(
+            address(pausable),
+            selectors,
+            ProtocolAdmin.PAUSE_ADMIN_ROLE
+        );
+
     }
 
     function test_protocolPauser_validate_config() public {
@@ -86,7 +97,7 @@ contract ProtocolPauseAdminTest is BaseTest {
 
     function test_protocolPauser_removePausable_notFound() public {
         vm.prank(u.admin);
-        vm.expectRevert(Errors.ProtocolPauseAdmin__PausableNotFound.selector);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ProtocolPauseAdmin__PausableNotFound.selector, address(u.admin)));
         protocolPauser.removePausable(address(u.admin));
     }
 
@@ -105,6 +116,43 @@ contract ProtocolPauseAdminTest is BaseTest {
         vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, address(this)));
         protocolPauser.pauseAll();
     }
+
+    function test_ProtocolPauseAdmin_pause() public {
+        vm.prank(u.admin);
+        protocolPauser.addPausable(address(pausable));
+
+
+        vm.prank(u.admin);
+        protocolAccessManager.grantRole(ProtocolAdmin.PAUSE_ADMIN_ROLE, u.bob, 0);
+
+        address[] memory pausables = new address[](2);
+        pausables[0] = address(pausable);
+        pausables[1] = address(accessController);
+
+        vm.startPrank(u.bob);
+        protocolPauser.pause(pausables);
+        assertTrue(pausable.paused());
+        assertTrue(accessController.paused());
+        assertFalse(protocolPauser.isAllProtocolPaused());
+    }
+
+    function test_ProtocolPauseAdmin_pause_revert_notPauser() public {
+        address[] memory pausables = new address[](2);
+        vm.expectRevert(abi.encodeWithSelector(IAccessManaged.AccessManagedUnauthorized.selector, address(this)));
+        protocolPauser.pause(pausables);
+    }
+
+    function test_ProtocolPauseAdmin_pause_revert_pausableNotFound() public {
+        vm.prank(u.admin);
+        protocolAccessManager.grantRole(ProtocolAdmin.PAUSE_ADMIN_ROLE, u.bob, 0);
+        address[] memory pausables = new address[](1);
+        pausables[0] = address(pausable);
+
+        vm.startPrank(u.bob);
+        vm.expectRevert(abi.encodeWithSelector(Errors.ProtocolPauseAdmin__PausableNotFound.selector, address(pausable)));
+        protocolPauser.pause(pausables);
+    }
+
 
     function test_ProtocolPauseAdmin_unpauseAll() public {
         vm.prank(u.admin);
