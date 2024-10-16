@@ -28,12 +28,7 @@ contract ProtocolPauseAdminTest is BaseTest {
         selectors[0] = ProtocolPausableUpgradeable.pause.selector;
         selectors[1] = ProtocolPausableUpgradeable.unpause.selector;
         vm.prank(u.admin);
-        protocolAccessManager.setTargetFunctionRole(
-            address(pausable),
-            selectors,
-            ProtocolAdmin.PAUSE_ADMIN_ROLE
-        );
-
+        protocolAccessManager.setTargetFunctionRole(address(pausable), selectors, ProtocolAdmin.PAUSE_ADMIN_ROLE);
     }
 
     function test_protocolPauser_validate_config() public {
@@ -121,7 +116,6 @@ contract ProtocolPauseAdminTest is BaseTest {
         vm.prank(u.admin);
         protocolPauser.addPausable(address(pausable));
 
-
         vm.prank(u.admin);
         protocolAccessManager.grantRole(ProtocolAdmin.PAUSE_ADMIN_ROLE, u.bob, 0);
 
@@ -149,10 +143,11 @@ contract ProtocolPauseAdminTest is BaseTest {
         pausables[0] = address(pausable);
 
         vm.startPrank(u.bob);
-        vm.expectRevert(abi.encodeWithSelector(Errors.ProtocolPauseAdmin__PausableNotFound.selector, address(pausable)));
+        vm.expectRevert(
+            abi.encodeWithSelector(Errors.ProtocolPauseAdmin__PausableNotFound.selector, address(pausable))
+        );
         protocolPauser.pause(pausables);
     }
-
 
     function test_ProtocolPauseAdmin_unpauseAll() public {
         vm.prank(u.admin);
