@@ -331,6 +331,14 @@ contract LicensingModule is
         uint32[] memory rPercents = new uint32[](parentIpIds.length);
         for (uint256 i = 0; i < parentIpIds.length; i++) {
             (address royaltyPolicy, uint32 royaltyPercent, , ) = lct.getRoyaltyPolicy(licenseTermsIds[i]);
+            Licensing.LicensingConfig memory lsc = LICENSE_REGISTRY.getLicensingConfig(
+                parentIpIds[i],
+                licenseTemplate,
+                licenseTermsIds[i]
+            );
+            if (lsc.isSet && lsc.commercialRevShare != 0) {
+                royaltyPercent = lsc.commercialRevShare;
+            }
             rPercents[i] = royaltyPercent;
             rPolicies[i] = royaltyPolicy;
         }
@@ -366,6 +374,24 @@ contract LicensingModule is
         uint256 licenseTermsId,
         Licensing.LicensingConfig memory licensingConfig
     ) external verifyPermission(ipId) whenNotPaused {
+        if (licenseTemplate == address(0) && licensingConfig.commercialRevShare != 0) {
+            revert Errors.LicensingModule__LicenseTemplateCannotBeZeroAddressToOverrideRoyaltyPercent();
+        }
+
+        if (licensingConfig.commercialRevShare != 0) {
+            ILicenseTemplate lct = ILicenseTemplate(licenseTemplate);
+            if (!LICENSE_REGISTRY.isRegisteredLicenseTemplate(licenseTemplate)) {
+                revert Errors.LicenseRegistry__UnregisteredLicenseTemplate(licenseTemplate);
+            }
+            if (!lct.canOverrideRoyaltyPercent(licenseTermsId, licensingConfig.commercialRevShare)) {
+                revert Errors.LicensingModule__CurrentLicenseNotAllowOverrideRoyaltyPercent(
+                    licenseTemplate,
+                    licenseTermsId,
+                    licensingConfig.commercialRevShare
+                );
+            }
+        }
+
         if (
             licensingConfig.licensingHook != address(0) &&
             (!licensingConfig.licensingHook.supportsInterface(type(ILicensingHook).interfaceId) ||
@@ -529,7 +555,10 @@ contract LicensingModule is
         uint256 mintingFeeByLicense = 0;
         address currencyToken = address(0);
         (royaltyPolicy, royaltyPercent, mintingFeeByLicense, currencyToken) = lct.getRoyaltyPolicy(licenseTermsId);
-
+        // override royalty percent if it is set in licensing config
+        if (licensingConfig.isSet && licensingConfig.commercialRevShare != 0) {
+            royaltyPercent = licensingConfig.commercialRevShare;
+        }
         if (royaltyPolicy != address(0)) {
             ROYALTY_MODULE.onLicenseMinting(parentIpId, royaltyPolicy, royaltyPercent, royaltyContext);
             uint256 tmf = _getTotalMintingFee(licensingConfig, mintingFeeByHook, mintingFeeByLicense, amount);

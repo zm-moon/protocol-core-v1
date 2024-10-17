@@ -255,6 +255,15 @@ library Errors {
     /// @notice Zero address provided for IP Graph ACL.
     error LicenseRegistry__ZeroIPGraphACL();
 
+    /// @notice When Set LicenseConfig the license template cannot be Zero address if royalty percentage is not Zero.
+    error LicensingModule__LicenseTemplateCannotBeZeroAddressToOverrideRoyaltyPercent();
+
+    /// @notice Current License does not allow to override royalty percentage.
+    error LicensingModule__CurrentLicenseNotAllowOverrideRoyaltyPercent(
+        address licenseTemplate,
+        uint256 licenseTermsId,
+        uint32 newRoyaltyPercent
+    );
     ////////////////////////////////////////////////////////////////////////////
     //                             License Token                              //
     ////////////////////////////////////////////////////////////////////////////
