@@ -206,10 +206,12 @@ contract DisputeModule is
 
         address arbitrationPolicy = _updateActiveArbitrationPolicy(targetIpId);
         uint256 disputeId = ++$.disputeCounter;
+        uint256 disputeTimestamp = block.timestamp;
 
         $.disputes[disputeId] = Dispute({
             targetIpId: targetIpId,
             disputeInitiator: msg.sender,
+            disputeTimestamp: disputeTimestamp,
             arbitrationPolicy: arbitrationPolicy,
             disputeEvidenceHash: disputeEvidenceHash,
             targetTag: targetTag,
@@ -219,7 +221,16 @@ contract DisputeModule is
 
         IArbitrationPolicy(arbitrationPolicy).onRaiseDispute(msg.sender, data);
 
-        emit DisputeRaised(disputeId, targetIpId, msg.sender, arbitrationPolicy, disputeEvidenceHash, targetTag, data);
+        emit DisputeRaised(
+            disputeId,
+            targetIpId,
+            msg.sender,
+            disputeTimestamp,
+            arbitrationPolicy,
+            disputeEvidenceHash,
+            targetTag,
+            data
+        );
 
         return disputeId;
     }
@@ -296,10 +307,12 @@ contract DisputeModule is
         if (!$.isWhitelistedArbitrationPolicy[arbitrationPolicy]) arbitrationPolicy = $.baseArbitrationPolicy;
 
         uint256 disputeId = ++$.disputeCounter;
+        uint256 disputeTimestamp = block.timestamp;
 
         $.disputes[disputeId] = Dispute({
             targetIpId: derivativeIpId,
             disputeInitiator: msg.sender,
+            disputeTimestamp: disputeTimestamp,
             arbitrationPolicy: arbitrationPolicy,
             disputeEvidenceHash: "",
             targetTag: parentDispute.currentTag,
@@ -313,7 +326,8 @@ contract DisputeModule is
             parentIpId,
             derivativeIpId,
             parentDisputeId,
-            parentDispute.currentTag
+            parentDispute.currentTag,
+            disputeTimestamp
         );
     }
 
@@ -341,7 +355,7 @@ contract DisputeModule is
 
         IArbitrationPolicy(dispute.arbitrationPolicy).onResolveDispute(msg.sender, disputeId, data);
 
-        emit DisputeResolved(disputeId);
+        emit DisputeResolved(disputeId, data);
     }
 
     /// @notice Updates the active arbitration policy for a given ipId
@@ -377,6 +391,7 @@ contract DisputeModule is
     /// @param disputeId The dispute id
     /// @return targetIpId The ipId that is the target of the dispute
     /// @return disputeInitiator The address of the dispute initiator
+    /// @return disputeTimestamp The timestamp of the dispute
     /// @return arbitrationPolicy The address of the arbitration policy
     /// @return disputeEvidenceHash The hash pointing to the dispute evidence
     /// @return targetTag The target tag of the dispute
@@ -390,6 +405,7 @@ contract DisputeModule is
         returns (
             address targetIpId,
             address disputeInitiator,
+            uint256 disputeTimestamp,
             address arbitrationPolicy,
             bytes32 disputeEvidenceHash,
             bytes32 targetTag,
@@ -401,6 +417,7 @@ contract DisputeModule is
         return (
             dispute.targetIpId,
             dispute.disputeInitiator,
+            dispute.disputeTimestamp,
             dispute.arbitrationPolicy,
             dispute.disputeEvidenceHash,
             dispute.targetTag,
