@@ -582,6 +582,9 @@ library Errors {
     /// @notice Not a whitelisted royalty token.
     error RoyaltyModule__NotWhitelistedRoyaltyToken();
 
+    /// @notice IP is expired.
+    error RoyaltyModule__IpExpired();
+
     ////////////////////////////////////////////////////////////////////////////
     //                            Royalty Policy LAP                          //
     ////////////////////////////////////////////////////////////////////////////
