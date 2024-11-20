@@ -61,7 +61,7 @@ contract TestRoyaltyPolicyLRP is BaseTest {
         parentRoyalties[1] = uint32(10 * 10 ** 6);
         parentRoyalties[2] = uint32(7 * 10 ** 6);
         ipGraph.addParentIp(address(40), parents);
-        royaltyModule.onLinkToParents(address(40), parents, licenseRoyaltyPolicies, parentRoyalties, "");
+        royaltyModule.onLinkToParents(address(40), parents, licenseRoyaltyPolicies, parentRoyalties, "", 100e6);
 
         // mint license for 40
         royaltyModule.onLicenseMinting(address(40), address(royaltyPolicyLRP), uint32(5 * 10 ** 6), "");
@@ -74,7 +74,7 @@ contract TestRoyaltyPolicyLRP is BaseTest {
         licenseRoyaltyPolicies[0] = address(royaltyPolicyLRP);
         parentRoyalties[0] = uint32(5 * 10 ** 6);
         ipGraph.addParentIp(address(50), parents);
-        royaltyModule.onLinkToParents(address(50), parents, licenseRoyaltyPolicies, parentRoyalties, "");
+        royaltyModule.onLinkToParents(address(50), parents, licenseRoyaltyPolicies, parentRoyalties, "", 100e6);
 
         // mint license for 50
         royaltyModule.onLicenseMinting(address(50), address(royaltyPolicyLRP), uint32(15 * 10 ** 6), "");
@@ -87,7 +87,7 @@ contract TestRoyaltyPolicyLRP is BaseTest {
         licenseRoyaltyPolicies[0] = address(royaltyPolicyLRP);
         parentRoyalties[0] = uint32(15 * 10 ** 6);
         ipGraph.addParentIp(address(60), parents);
-        royaltyModule.onLinkToParents(address(60), parents, licenseRoyaltyPolicies, parentRoyalties, "");
+        royaltyModule.onLinkToParents(address(60), parents, licenseRoyaltyPolicies, parentRoyalties, "", 100e6);
 
         // mint license for 60
         royaltyModule.onLicenseMinting(address(60), address(mockExternalRoyaltyPolicy1), uint32(12 * 10 ** 6), "");
@@ -100,7 +100,7 @@ contract TestRoyaltyPolicyLRP is BaseTest {
         licenseRoyaltyPolicies[0] = address(mockExternalRoyaltyPolicy1);
         parentRoyalties[0] = uint32(12 * 10 ** 6);
         ipGraph.addParentIp(address(70), parents);
-        royaltyModule.onLinkToParents(address(70), parents, licenseRoyaltyPolicies, parentRoyalties, "");
+        royaltyModule.onLinkToParents(address(70), parents, licenseRoyaltyPolicies, parentRoyalties, "", 100e6);
     }
 
     function test_RoyaltyPolicyLRP_constructor_revert_ZeroRoyaltyModule() public {
@@ -159,7 +159,7 @@ contract TestRoyaltyPolicyLRP is BaseTest {
         ipGraph.addParentIp(address(80), parents);
 
         vm.startPrank(address(licensingModule));
-        royaltyModule.onLinkToParents(address(80), parents, licenseRoyaltyPolicies, parentRoyalties, "");
+        royaltyModule.onLinkToParents(address(80), parents, licenseRoyaltyPolicies, parentRoyalties, "", 100e6);
 
         address ipRoyaltyVault = royaltyModule.ipRoyaltyVaults(address(80));
 
@@ -199,7 +199,7 @@ contract TestRoyaltyPolicyLRP is BaseTest {
         ipGraph.addParentIp(ipAccount1, parents);
 
         vm.startPrank(address(licensingModule));
-        royaltyModule.onLinkToParents(ipAccount1, parents, licenseRoyaltyPolicies, parentRoyalties, "");
+        royaltyModule.onLinkToParents(ipAccount1, parents, licenseRoyaltyPolicies, parentRoyalties, "", 100e6);
 
         // make payment to ip 80
         uint256 royaltyAmount = 100 * 10 ** 6;
@@ -232,7 +232,7 @@ contract TestRoyaltyPolicyLRP is BaseTest {
         ipGraph.addParentIp(ipAccount1, parents);
 
         vm.startPrank(address(licensingModule));
-        royaltyModule.onLinkToParents(ipAccount1, parents, licenseRoyaltyPolicies, parentRoyalties, "");
+        royaltyModule.onLinkToParents(ipAccount1, parents, licenseRoyaltyPolicies, parentRoyalties, "", 100e6);
 
         // make payment to ip 80
         uint256 royaltyAmount = 100 * 10 ** 6;
@@ -266,7 +266,7 @@ contract TestRoyaltyPolicyLRP is BaseTest {
         ipGraph.addParentIp(ipAccount1, parents);
 
         vm.startPrank(address(licensingModule));
-        royaltyModule.onLinkToParents(ipAccount1, parents, licenseRoyaltyPolicies, parentRoyalties, "");
+        royaltyModule.onLinkToParents(ipAccount1, parents, licenseRoyaltyPolicies, parentRoyalties, "", 100e6);
 
         // make payment to ip 80
         uint256 royaltyAmount = 100 * 10 ** 6;
