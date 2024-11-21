@@ -149,7 +149,9 @@ contract LicenseRegistry is ILicenseRegistry, AccessManagedUpgradeable, UUPSUpgr
             licensingHook: licensingConfig.licensingHook,
             hookData: licensingConfig.hookData,
             commercialRevShare: licensingConfig.commercialRevShare,
-            disabled: licensingConfig.disabled
+            disabled: licensingConfig.disabled,
+            expectMinimumGroupRewardShare: licensingConfig.expectMinimumGroupRewardShare,
+            expectGroupRewardPool: licensingConfig.expectGroupRewardPool
         });
 
         emit LicensingConfigSetForLicense(ipId, licenseTemplate, licenseTermsId, licensingConfig);
@@ -171,7 +173,9 @@ contract LicenseRegistry is ILicenseRegistry, AccessManagedUpgradeable, UUPSUpgr
             licensingHook: licensingConfig.licensingHook,
             hookData: licensingConfig.hookData,
             commercialRevShare: licensingConfig.commercialRevShare,
-            disabled: licensingConfig.disabled
+            disabled: licensingConfig.disabled,
+            expectMinimumGroupRewardShare: licensingConfig.expectMinimumGroupRewardShare,
+            expectGroupRewardPool: licensingConfig.expectGroupRewardPool
         });
         emit LicensingConfigSetForIP(ipId, licensingConfig);
     }
@@ -295,6 +299,48 @@ contract LicenseRegistry is ILicenseRegistry, AccessManagedUpgradeable, UUPSUpgr
             revert Errors.LicenseRegistry__LicensorIpHasNoLicenseTerms(licensorIpId, licenseTemplate, licenseTermsId);
         }
         return _getLicensingConfig(licensorIpId, licenseTemplate, licenseTermsId);
+    }
+
+    /// @notice Verifies the group can add given IP.
+    /// @param groupId The address of the group.
+    /// @param groupRewardPool The address of the reward pool of the group.
+    /// @param ipId The address of the IP to be added to the group.
+    /// @param groupLicenseTemplate the address of the license template attached to the group.
+    /// the IP must have this license template.
+    /// @param groupLicenseTermsId The ID of the license terms attached to the group.
+    /// the IP must have this license terms.
+    /// @return ipLicensingConfig The configuration for license attached to the IP.
+    function verifyGroupAddIp(
+        address groupId,
+        address groupRewardPool,
+        address ipId,
+        address groupLicenseTemplate,
+        uint256 groupLicenseTermsId
+    ) external view returns (Licensing.LicensingConfig memory ipLicensingConfig) {
+        // check if the IP has the same license terms as the group
+        if (!_hasIpAttachedLicenseTerms(ipId, groupLicenseTemplate, groupLicenseTermsId)) {
+            revert Errors.LicenseRegistry__IpHasNoGroupLicenseTerms(ipId, groupLicenseTemplate, groupLicenseTermsId);
+        }
+        Licensing.LicensingConfig memory lct = _getLicensingConfig(ipId, groupLicenseTemplate, groupLicenseTermsId);
+        if (lct.disabled) {
+            revert Errors.LicenseRegistry__IpLicenseDisabled(ipId, groupLicenseTemplate, groupLicenseTermsId);
+        }
+        if (lct.expectGroupRewardPool == address(0)) {
+            revert Errors.LicenseRegistry__IpExpectGroupRewardPoolNotSet(ipId);
+        }
+        if (lct.expectGroupRewardPool != address(groupRewardPool)) {
+            revert Errors.LicenseRegistry__IpExpectGroupRewardPoolNotMatch(
+                ipId,
+                lct.expectGroupRewardPool,
+                groupId,
+                address(groupRewardPool)
+            );
+        }
+        // IP must not have expiration time to be added to group
+        if (_getExpireTime(ipId) != 0) {
+            revert Errors.LicenseRegistry__CannotAddIpWithExpirationToGroup(ipId);
+        }
+        ipLicensingConfig = lct;
     }
 
     /// @notice Checks if a license template is registered.

@@ -23,6 +23,7 @@ import { IPILicenseTemplate, PILTerms } from "../../interfaces/modules/licensing
 import { ILicenseToken } from "../../interfaces/ILicenseToken.sol";
 import { IRoyaltyModule } from "../../interfaces/modules/royalty/IRoyaltyModule.sol";
 import { IIpRoyaltyVault } from "../../interfaces/modules/royalty/policies/IIpRoyaltyVault.sol";
+import { Licensing } from "../../lib/Licensing.sol";
 
 /// @title Grouping Module
 /// @notice Grouping module is the main entry point for the IPA grouping. It is responsible for:
@@ -166,19 +167,23 @@ contract GroupingModule is
             if (GROUP_IP_ASSET_REGISTRY.isRegisteredGroup(ipIds[i])) {
                 revert Errors.GroupingModule__CannotAddGroupToGroup(groupIpId, ipIds[i]);
             }
-            // check if the IP has the same license terms as the group
-            if (!LICENSE_REGISTRY.hasIpAttachedLicenseTerms(ipIds[i], groupLicenseTemplate, groupLicenseTermsId)) {
-                revert Errors.GroupingModule__IpHasNoGroupLicenseTerms(
+
+            Licensing.LicensingConfig memory lc = LICENSE_REGISTRY.verifyGroupAddIp(
+                groupIpId,
+                address(pool),
+                ipIds[i],
+                groupLicenseTemplate,
+                groupLicenseTermsId
+            );
+            uint256 totalGroupRewardShare = pool.addIp(groupIpId, ipIds[i], lc.expectMinimumGroupRewardShare);
+            if (totalGroupRewardShare > 100 * 10 ** 6) {
+                revert Errors.GroupingModule__TotalGroupRewardShareExceeds100Percent(
+                    groupIpId,
+                    totalGroupRewardShare,
                     ipIds[i],
-                    groupLicenseTemplate,
-                    groupLicenseTermsId
+                    lc.expectMinimumGroupRewardShare
                 );
             }
-            // IP must not have expiration time to be added to group
-            if (LICENSE_REGISTRY.getExpireTime(ipIds[i]) != 0) {
-                revert Errors.GroupingModule__CannotAddIpWithExpirationToGroup(ipIds[i]);
-            }
-            pool.addIp(groupIpId, ipIds[i]);
         }
 
         emit AddedIpToGroup(groupIpId, ipIds);
