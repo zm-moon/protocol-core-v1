@@ -2,10 +2,9 @@
 
 import hre from "hardhat";
 import { network } from "hardhat";
-import { GroupingModule, IPAssetRegistry, LicenseRegistry, LicenseToken, LicensingModule, PILicenseTemplate, RoyaltyPolicyLAP, MockERC20, RoyaltyPolicyLRP, AccessController, RoyaltyModule, EvenSplitGroupPool } from "./constants";
+import { GroupingModule, IPAssetRegistry, LicenseRegistry, LicenseToken, LicensingModule, PILicenseTemplate, RoyaltyPolicyLAP, MockERC20, RoyaltyPolicyLRP, AccessController, RoyaltyModule, EvenSplitGroupPool, IpRoyaltyVaultImpl } from "./constants";
 import { terms } from "./licenseTermsTemplate";
-import { approveSpender, checkAndApproveSpender, getAllowance, mintAmount } from "./utils/erc20Helper";
-import { check } from "prettier";
+import { checkAndApproveSpender } from "./utils/erc20Helper";
 
 before(async function () {
   console.log(`================= Load Contract =================`);
@@ -17,8 +16,10 @@ before(async function () {
   this.licenseTemplate = await hre.ethers.getContractAt("PILicenseTemplate", PILicenseTemplate);
   this.accessController = await hre.ethers.getContractAt("AccessController", AccessController);
   this.royaltyModule = await hre.ethers.getContractAt("RoyaltyModule", RoyaltyModule);
-  this.evenSplitGroupPool = await hre.ethers.getContractAt("EvenSplitGroupPool", EvenSplitGroupPool);
   this.royaltyPolicyLAP = await hre.ethers.getContractAt("RoyaltyPolicyLAP", RoyaltyPolicyLAP);
+  this.royaltyPolicyLRP = await hre.ethers.getContractAt("RoyaltyPolicyLRP", RoyaltyPolicyLRP);
+  this.ipRoyaltyVaultImpl = await hre.ethers.getContractAt("IpRoyaltyVault", IpRoyaltyVaultImpl);
+  this.evenSplitGroupPool = await hre.ethers.getContractAt("EvenSplitGroupPool", EvenSplitGroupPool);
   this.errors = await hre.ethers.getContractFactory("Errors");
   
   console.log(`================= Load Users =================`);
