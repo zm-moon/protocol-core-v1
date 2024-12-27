@@ -25,4 +25,4 @@ export const RoyaltyPolicyLAP = "0x28b4F70ffE5ba7A26aEF979226f77Eb57fb9Fdb6";
 export const RoyaltyPolicyLRP = "0x7D2d9af4E4ab14Afcfd86436BC348928B40963Dd";
 
 // Mock ERC721 contract address
-export const MockERC721 = process.env.DEVNET_ERC721 as string;
+export const MockERC721 = process.env.STORY_ERC721 as string;
